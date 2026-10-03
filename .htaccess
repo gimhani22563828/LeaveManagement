@@ -1,0 +1,29 @@
+# AKK Leave System - Apache hardening (InfinityFree uses Apache)
+Options -Indexes
+
+# Block direct access to backend / config / db files
+<FilesMatch "\.(db|sqlite|sqlite3)$">
+    Require all denied
+</FilesMatch>
+
+<FilesMatch "^(db\.php|db_template\.php|auth\.php|logger\.php|leaveManagementEngine\.php)$">
+    Require all denied
+</FilesMatch>
+
+# Install/diagnostic scripts - block after first-time setup (self-lock handled in-code)
+<FilesMatch "^(setup_account_AKK\.php)$">
+    Require all denied
+</FilesMatch>
+
+# Block access to the logs folder (in case file-based logging is used)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^logs/ - [F,L]
+</IfModule>
+
+# Basic security headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

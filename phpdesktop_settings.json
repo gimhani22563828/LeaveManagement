@@ -1,0 +1,24 @@
+{
+    "document_root": "C:\\Users\\pramo\\Desktop\\leave_system",
+    "document_root_relative": false,
+    "host": "127.0.0.1",
+    "port": 8080,
+    "mysql_port": 3306,
+    "php_ini_update": {
+        "error_reporting": "E_ALL",
+        "display_errors": "On",
+        "extension_dir": "ext",
+        "extensions": ["php_curl.dll", "php_mbstring.dll", "php_openssl.dll", "php_sqlite3.dll", "php_pdo_sqlite.dll"],
+        "date.timezone": "Asia/Colombo"
+    },
+    "chrome": {
+        "window_state": {
+            "width": 1200,
+            "height": 800,
+            "left": 100,
+            "top": 100
+        },
+        "disable_right_click": false,
+        "disable_devtools": false
+    }
+}
