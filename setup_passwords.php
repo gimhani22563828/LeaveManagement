@@ -163,16 +163,28 @@ if (isset($_POST['add_employee'])) {
     $emp_username = trim($_POST['emp_new_username'] ?? '');
     $emp_shift = $_POST['emp_shift'] ?? '';
     $raw_password = $_POST['emp_new_password'] ?? '';
+    $employee_type = $_POST['employee_type'] ?? 'lab';
+    $lab_id = (int)filter_var($_POST['lab_id'] ?? '', FILTER_VALIDATE_INT);
+    $lab_is_valid = false;
+    if ($employee_type === 'lab') {
+        $stmt = $conn->prepare("SELECT COUNT(*) FROM labs WHERE id = :id AND active = 1");
+        $stmt->execute([':id' => $lab_id]);
+        $lab_is_valid = (int)$stmt->fetchColumn() > 0;
+    }
 
     $err = '';
     if ($emp_name === '' || $emp_username === '' || $emp_shift === '' || $raw_password === '') {
         $err = 'සියලුම fields (නම, username, shift, password) අනිවාර්යයි. Name saha password nathiwa account hadanna beri.';
+    } elseif (!in_array($employee_type, ['lab', 'rider'], true)) {
+        $err = 'Employee type eka Lab Employee ho Rider venna one.';
     } elseif (mb_strlen($emp_name) < 2 || mb_strlen($emp_name) > 100) {
         $err = 'නම අකුරු 2-100 ක් විය යුතුයි.';
     } elseif (!validUsernameFormat($emp_username)) {
         $err = 'Username අකුරු 3-50 ක විය යුතුයි (a-z, A-Z, 0-9, . _ පමණයි).';
     } elseif (!in_array($emp_shift, ['M', 'E', 'BOTH'], true)) {
         $err = 'වලංගු shift එකක් තෝරන්න (M / E / BOTH).';
+    } elseif ($employee_type === 'lab' && !$lab_is_valid) {
+        $err = 'Lab employee kenekuta active Lab ekak select karanna.';
     } elseif (strlen($raw_password) < 4 || strlen($raw_password) > 72) {
         $err = 'Password අකුරු 4-72 ක විය යුතුයි.';
     } elseif (usernameExistsAnywhere($conn, $emp_username)) {
@@ -185,11 +197,18 @@ if (isset($_POST['add_employee'])) {
     } else {
         $emp_password = password_hash($raw_password, PASSWORD_DEFAULT);
         try {
-            $stmt = $conn->prepare("INSERT INTO users (name, username, password, shift_type) VALUES (:name, :username, :password, :shift)");
-            $stmt->execute([':name' => $emp_name, ':username' => $emp_username, ':password' => $emp_password, ':shift' => $emp_shift]);
+            $stmt = $conn->prepare("INSERT INTO users (name, username, password, shift_type, employee_type, lab_id) VALUES (:name, :username, :password, :shift, :employee_type, :lab_id)");
+            $stmt->execute([
+                ':name' => $emp_name,
+                ':username' => $emp_username,
+                ':password' => $emp_password,
+                ':shift' => $emp_shift,
+                ':employee_type' => $employee_type,
+                ':lab_id' => $employee_type === 'lab' ? $lab_id : null
+            ]);
             $new_id = $conn->lastInsertId();
-            writeLog('EMP_CREATED', 'Employee created: ' . $emp_username . ' (#' . $new_id . ')');
-            $message = '<div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs"><i class="fa-solid fa-circle-check"></i> Employee <b>' . htmlspecialchars($emp_name) . '</b> සාර්ථකව සෑදිණි! ID: <b>#' . $new_id . '</b> | Username: <b>' . htmlspecialchars($emp_username) . '</b></div>';
+            writeLog('EMP_CREATED', ucfirst($employee_type) . ' created: ' . $emp_username . ' (#' . $new_id . ')');
+            $message = '<div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs"><i class="fa-solid fa-circle-check"></i> ' . ucfirst($employee_type) . ' <b>' . htmlspecialchars($emp_name) . '</b> සාර්ථකව සෑදිණි! ID: <b>#' . $new_id . '</b> | Username: <b>' . htmlspecialchars($emp_username) . '</b></div>';
         } catch (PDOException $e) {
             writeLog('EMP_CREATE_FAILED', 'Insert failed: ' . $emp_username);
             $message = errorMessageBox('ගිණුම සෑදීම අසාර්ථක විය. Username eka duplicate vela vune venna one.');
@@ -220,6 +239,7 @@ if (isset($_GET['delete_emp'])) {
 }
 
 $employees = $conn->query("SELECT * FROM users ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
+$labs = $conn->query("SELECT id, name FROM labs WHERE active = 1 ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
 $admins = $conn->query("SELECT * FROM admin_users")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
@@ -347,6 +367,20 @@ $admins = $conn->query("SELECT * FROM admin_users")->fetchAll(PDO::FETCH_ASSOC);
                     <option value="E">Evening Shift</option>
                     <option value="BOTH">Both Shifts</option>
                 </select>
+                <select name="employee_type" id="setupEmployeeType" onchange="toggleSetupEmployeeType()"
+                    class="bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 input-glow transition-all">
+                    <option value="lab">Lab Employee</option>
+                    <option value="rider">Rider</option>
+                </select>
+                <div id="setupLabWrap">
+                    <select name="lab_id" id="setupLabId"
+                        class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 input-glow transition-all">
+                        <option value="">-- Select Lab --</option>
+                        <?php foreach ($labs as $lab): ?>
+                            <option value="<?= (int)$lab['id']; ?>"><?= htmlspecialchars($lab['name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
                 <input type="password" name="emp_new_password" required placeholder="Password"
                     class="bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
                 <button type="submit" name="add_employee"
@@ -397,7 +431,7 @@ $admins = $conn->query("SELECT * FROM admin_users")->fetchAll(PDO::FETCH_ASSOC);
                                     </div>
                                     <div class="flex-1 min-w-0">
                                         <p class="text-xs font-medium text-white">#<?= $e['id']; ?> <?= htmlspecialchars($e['name']); ?></p>
-                                        <p class="text-[10px] text-slate-400"><?= htmlspecialchars($e['username'] ?? 'N/A'); ?> &middot; <?= $e['shift_type']; ?> Shift <?= !empty($e['password']) ? '&middot; <span class="text-emerald-400">Ready</span>' : '&middot; <span class="text-amber-400">No Password</span>'; ?></p>
+                                        <p class="text-[10px] text-slate-400"><?= htmlspecialchars($e['username'] ?? 'N/A'); ?> &middot; <?= htmlspecialchars(ucfirst($e['employee_type'] ?? 'lab')); ?> &middot; <?= $e['shift_type']; ?> Shift <?= !empty($e['password']) ? '&middot; <span class="text-emerald-400">Ready</span>' : '&middot; <span class="text-amber-400">No Password</span>'; ?></p>
                                     </div>
                                     <a href="?delete_emp=<?= $e['id']; ?>" onclick="return confirm('මෙම Employee account එක මැකීමට තහවුරු කරන්න?')"
                                         class="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 p-1.5 rounded-lg transition text-[10px]" title="Delete">
@@ -411,5 +445,13 @@ $admins = $conn->query("SELECT * FROM admin_users")->fetchAll(PDO::FETCH_ASSOC);
             </div>
         </div>
     </div>
+    <script>
+    function toggleSetupEmployeeType() {
+        const isLabEmployee = document.getElementById('setupEmployeeType').value === 'lab';
+        document.getElementById('setupLabWrap').style.display = isLabEmployee ? '' : 'none';
+        document.getElementById('setupLabId').required = isLabEmployee;
+    }
+    toggleSetupEmployeeType();
+    </script>
 </body>
 </html>

@@ -24,16 +24,20 @@ class LeaveManagementEngine {
 
         // --- RULE 9: මාසයකට එක් අයෙකුට ලබාගත හැකි උපරිම නිවාඩු ගණන 4 සීමාව ---
         $yearMonth = date('Y-m', strtotime($leaveDate));
+        $monthStart = $yearMonth . '-01';
+        $nextMonthStart = (new DateTime($monthStart))->modify('+1 month')->format('Y-m-d');
         $stmtMonthly = $this->conn->prepare("
             SELECT COUNT(*) 
             FROM leave_requests 
             WHERE user_id = :userId 
               AND status = 'Approved' 
-              AND DATE_FORMAT(leave_date, '%Y-%m') = :yearMonth
+              AND leave_date >= :monthStart
+              AND leave_date < :nextMonthStart
         ");
         $stmtMonthly->execute([
-            ':userId'    => $userId,
-            ':yearMonth' => $yearMonth
+            ':userId'         => $userId,
+            ':monthStart'     => $monthStart,
+            ':nextMonthStart' => $nextMonthStart
         ]);
         $monthlyApprovedCount = $stmtMonthly->fetchColumn();
 

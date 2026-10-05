@@ -26,11 +26,42 @@ function usernameTaken($conn, $username, $excludeUserId = 0) {
     return (bool)$stmt->fetch(PDO::FETCH_ASSOC);
 }
 
+function activeLabExists(PDO $conn, int $labId): bool {
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM labs WHERE id = :id AND active = 1");
+    $stmt->execute([':id' => $labId]);
+    return (int)$stmt->fetchColumn() > 0;
+}
+
 function adminMsg($text, $ok = true) {
     $cls = $ok ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300'
                : 'bg-rose-500/10 border-rose-500/25 text-rose-300';
     $icon = $ok ? 'fa-circle-check' : 'fa-circle-xmark';
     return '<div class="p-3 rounded-xl border ' . $cls . ' text-xs mb-4"><i class="fa-solid ' . $icon . '"></i> ' . htmlspecialchars($text) . '</div>';
+}
+
+if (isset($_POST['create_lab'])) {
+    $labName = trim($_POST['lab_name'] ?? '');
+    $err = '';
+    if ($labName === '' || mb_strlen($labName) > 100) {
+        $err = 'Lab name eka akuru 1-100 athara venna one.';
+    } else {
+        $stmt = $conn->prepare("SELECT COUNT(*) FROM labs WHERE LOWER(name) = LOWER(:name)");
+        $stmt->execute([':name' => $labName]);
+        if ((int)$stmt->fetchColumn() > 0) {
+            $err = 'Me Lab eka danata thiyenawa. Vena nama danna.';
+        }
+    }
+
+    if ($err !== '') {
+        writeLog('LAB_CREATE_FAILED', $err);
+        $message = adminMsg($err, false);
+        $messageOk = false;
+    } else {
+        $stmt = $conn->prepare("INSERT INTO labs (name, active) VALUES (:name, 1)");
+        $stmt->execute([':name' => $labName]);
+        writeLog('LAB_CREATED', 'Lab created: ' . $labName);
+        $message = adminMsg('Lab added: ' . $labName);
+    }
 }
 
 if (isset($_POST['update_emp'])) {
@@ -40,6 +71,8 @@ if (isset($_POST['update_emp'])) {
     $newShift    = $_POST['new_shift'] ?? '';
     $newPos      = trim($_POST['new_position'] ?? '');
     $newNum      = trim($_POST['new_number'] ?? '');
+    $newLabId    = trim($_POST['new_lab_id'] ?? '');
+    $newLabIdValue = $newLabId === '' ? 0 : filter_var($newLabId, FILTER_VALIDATE_INT);
 
     $err = '';
     if ($empId <= 0) {
@@ -64,6 +97,8 @@ if (isset($_POST['update_emp'])) {
         $emp = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$emp) {
             $err = 'Employee #' . $empId . ' db eke nathi vela.';
+        } elseif ($newLabId !== '' && ($emp['employee_type'] !== 'lab' || !is_int($newLabIdValue) || !activeLabExists($conn, $newLabIdValue))) {
+            $err = 'Lab ekak assign karanna active Lab employee kenek select karanna.';
         }
     }
 
@@ -99,6 +134,11 @@ if (isset($_POST['update_emp'])) {
             $sets[] = "emp_number = :emp_number";
             $params[':emp_number'] = $newNum;
             $changes[] = 'emp_number:' . $newNum;
+        }
+        if ($newLabId !== '') {
+            $sets[] = "lab_id = :lab_id";
+            $params[':lab_id'] = $newLabIdValue;
+            $changes[] = 'lab:' . $newLabId;
         }
 
         if (empty($sets)) {
@@ -381,7 +421,11 @@ $stmt = $conn->query("SELECT lr.*, u.name
 $approved_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // --- Employees List ---
-$employees = $conn->query("SELECT * FROM users ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
+$employees = $conn->query("SELECT u.*, l.name AS lab_name
+                           FROM users u
+                           LEFT JOIN labs l ON l.id = u.lab_id
+                           ORDER BY u.id")->fetchAll(PDO::FETCH_ASSOC);
+$labs = $conn->query("SELECT id, name FROM labs WHERE active = 1 ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
 $admins = $conn->query("SELECT * FROM admin_users ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
 $hasCustomRegCode = (getSetting($conn, 'register_access_code', '') !== '');
 $hasCustomAdminKey = (getSetting($conn, 'admin_reg_key', '') !== '');
@@ -393,22 +437,40 @@ $cfgMinEvening  = (int)getSetting($conn, 'min_evening_staff', 3);
 $cfgUseDepRules = (int)getSetting($conn, 'use_dependency_rules', 0) === 1;
 
 // --- Calendar Events ---
-$stmt = $conn->query("SELECT lr.id, lr.leave_date, lr.shift_applied, u.name, u.id as user_id 
-                      FROM leave_requests lr 
-                      JOIN users u ON lr.user_id = u.id 
-                      WHERE lr.status = 'Approved'");
-$approved_leaves_query = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$stmt = $conn->query("SELECT lr.id, lr.leave_date, lr.shift_applied, u.name, u.id AS user_id, u.lab_id
+                      FROM leave_requests lr
+                      JOIN users u ON lr.user_id = u.id
+                      WHERE lr.status = 'Approved' AND u.employee_type = 'lab'");
+$labLeaveRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-$calendar_events = [];
-foreach ($approved_leaves_query as $row) {
-    $calendar_events[] = [
-        'id'    => $row['id'],
+$labCalendarEvents = [];
+foreach ($labLeaveRows as $row) {
+    $labCalendarEvents[] = [
+        'id' => $row['id'],
+        'title' => '#' . $row['user_id'] . ' ' . $row['name'] . ' (' . $row['shift_applied'] . ')',
+        'start' => $row['leave_date'],
+        'color' => ($row['shift_applied'] == 'M') ? '#3b82f6' : '#a855f7',
+        'labId' => (int)$row['lab_id']
+    ];
+}
+$labEventsJson = json_encode($labCalendarEvents, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_THROW_ON_ERROR);
+
+$stmt = $conn->query("SELECT lr.id, lr.leave_date, lr.shift_applied, u.name, u.id AS user_id
+                      FROM leave_requests lr
+                      JOIN users u ON lr.user_id = u.id
+                      WHERE lr.status = 'Approved' AND u.employee_type = 'rider'");
+$riderLeaveRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$riderCalendarEvents = [];
+foreach ($riderLeaveRows as $row) {
+    $riderCalendarEvents[] = [
+        'id' => $row['id'],
         'title' => '#' . $row['user_id'] . ' ' . $row['name'] . ' (' . $row['shift_applied'] . ')',
         'start' => $row['leave_date'],
         'color' => ($row['shift_applied'] == 'M') ? '#3b82f6' : '#a855f7'
     ];
 }
-$events_json = json_encode($calendar_events);
+$riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_THROW_ON_ERROR);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -461,7 +523,10 @@ $events_json = json_encode($calendar_events);
                     <i class="fa-solid fa-chart-pie w-5 text-center text-indigo-400"></i> Dashboard
                 </a>
                 <a href="#calendar-section" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">
-                    <i class="fa-solid fa-calendar-days w-5 text-center"></i> Leave Calendar
+                    <i class="fa-solid fa-flask w-5 text-center"></i> Lab Leave Calendar
+                </a>
+                <a href="#rider-calendar-section" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">
+                    <i class="fa-solid fa-motorcycle w-5 text-center"></i> Rider Leave Calendar
                 </a>
                 <a href="#approved-section" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">
                     <i class="fa-solid fa-calendar-xmark w-5 text-center text-rose-400"></i> Cancel Leaves
@@ -566,21 +631,48 @@ $events_json = json_encode($calendar_events);
                 </div>
             </div>
 
-            <!-- Calendar -->
+            <!-- Lab Calendar -->
             <div id="calendar-section" class="card-glass border border-slate-700/40 rounded-2xl p-6 overflow-hidden">
-                <div class="flex items-center justify-between mb-5">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
                     <div class="flex items-center gap-3">
                         <div class="w-9 h-9 rounded-xl bg-indigo-500/15 flex items-center justify-center">
-                            <i class="fa-solid fa-calendar-days text-indigo-400 text-sm"></i>
+                            <i class="fa-solid fa-flask text-indigo-400 text-sm"></i>
                         </div>
-                        <h2 class="font-bold text-white text-sm">Leave Calendar</h2>
+                        <h2 class="font-bold text-white text-sm">Lab Leave Calendar</h2>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-4">
+                        <label class="flex items-center gap-2 text-[11px] text-slate-300">
+                            <span class="font-semibold">Select Lab</span>
+                            <select id="labCalendarSelect" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white">
+                                <?php foreach ($labs as $lab): ?>
+                                    <option value="<?= (int)$lab['id']; ?>" <?= (int)$lab['id'] === $mainLabId ? 'selected' : ''; ?>><?= htmlspecialchars($lab['name']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <div class="flex items-center gap-4 text-[11px]">
+                            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> Morning (M)</span>
+                            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span> Evening (E)</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="calendar" class="min-h-[500px]"></div>
+            </div>
+
+            <!-- Rider Calendar -->
+            <div id="rider-calendar-section" class="card-glass border border-slate-700/40 rounded-2xl p-6 overflow-hidden">
+                <div class="flex items-center justify-between mb-5">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
+                            <i class="fa-solid fa-motorcycle text-amber-400 text-sm"></i>
+                        </div>
+                        <h2 class="font-bold text-white text-sm">Rider Leave Calendar</h2>
                     </div>
                     <div class="flex items-center gap-4 text-[11px]">
                         <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> Morning (M)</span>
                         <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span> Evening (E)</span>
                     </div>
                 </div>
-                <div id="calendar" class="min-h-[500px]"></div>
+                <div id="riderCalendar" class="min-h-[500px]"></div>
             </div>
 
             <!-- Emergency Queue (With Cancel Option) -->
@@ -715,6 +807,31 @@ $events_json = json_encode($calendar_events);
                     <?= $message; ?>
                 <?php endif; ?>
 
+                <div class="card-glass border border-indigo-500/20 rounded-2xl p-6">
+                    <div class="flex items-center gap-3 mb-5">
+                        <div class="w-9 h-9 rounded-xl bg-indigo-500/15 flex items-center justify-center">
+                            <i class="fa-solid fa-flask text-indigo-400 text-sm"></i>
+                        </div>
+                        <div>
+                            <h2 class="font-bold text-white text-sm">Manage Labs</h2>
+                            <p class="text-[10px] text-slate-500">Add Labs here; existing employee assignments and leaves are retained.</p>
+                        </div>
+                    </div>
+                    <form method="POST" class="flex flex-col sm:flex-row gap-3 mb-4">
+                        <input type="text" name="lab_name" required maxlength="100" placeholder="New Lab name"
+                            class="flex-1 bg-slate-800/60 border border-slate-700/60 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 input-glow transition-all">
+                        <button type="submit" name="create_lab"
+                            class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-5 py-3 rounded-xl transition">
+                            <i class="fa-solid fa-plus"></i> Add Lab
+                        </button>
+                    </form>
+                    <div class="flex flex-wrap gap-2">
+                        <?php foreach ($labs as $lab): ?>
+                            <span class="px-3 py-1.5 rounded-lg bg-slate-800/70 border border-slate-700 text-xs text-slate-200"><?= htmlspecialchars($lab['name']); ?></span>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <!-- Edit Employee -->
                     <div class="card-glass border border-slate-700/40 rounded-2xl p-6">
@@ -734,7 +851,7 @@ $events_json = json_encode($calendar_events);
                                     class="w-full appearance-none cursor-pointer bg-slate-800/60 border border-slate-700/60 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 input-glow transition-all [&>option]:bg-slate-900">
                                     <option value="">-- Select Employee --</option>
                                     <?php foreach ($employees as $e): ?>
-                                        <option value="<?= (int)$e['id']; ?>">#<?= htmlspecialchars((string)($e['emp_number'] ?? '')) ?: (int)$e['id']; ?> <?= htmlspecialchars($e['name']); ?> (@<?= htmlspecialchars($e['username'] ?? ''); ?> - <?= $e['shift_type']; ?><?= !empty($e['position']) ? ' - ' . htmlspecialchars($e['position']) : ''; ?>)</option>
+                                        <option value="<?= (int)$e['id']; ?>">#<?= htmlspecialchars((string)($e['emp_number'] ?? '')) ?: (int)$e['id']; ?> <?= htmlspecialchars($e['name']); ?> (<?= htmlspecialchars(ucfirst($e['employee_type'])); ?><?= $e['employee_type'] === 'lab' && !empty($e['lab_name']) ? ' - ' . htmlspecialchars($e['lab_name']) : ''; ?>; @<?= htmlspecialchars($e['username'] ?? ''); ?> - <?= $e['shift_type']; ?><?= !empty($e['position']) ? ' - ' . htmlspecialchars($e['position']) : ''; ?>)</option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
@@ -770,6 +887,16 @@ $events_json = json_encode($calendar_events);
                                 <input type="text" name="new_number" placeholder="Wenas karanne nam witharak (ud ah: 014, EMP005)"
                                     class="w-full bg-slate-800/60 border border-slate-700/60 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 input-glow transition-all">
                             </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1.5">Assign Lab (Lab employees)</label>
+                                <select name="new_lab_id"
+                                    class="w-full bg-slate-800/60 border border-slate-700/60 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 input-glow transition-all [&>option]:bg-slate-900">
+                                    <option value="">-- Do not change Lab --</option>
+                                    <?php foreach ($labs as $lab): ?>
+                                        <option value="<?= (int)$lab['id']; ?>"><?= htmlspecialchars($lab['name']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
                             <button type="submit" name="update_emp"
                                 class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 text-sm">
                                 <i class="fa-solid fa-floppy-disk"></i> Update Employee
@@ -795,7 +922,7 @@ $events_json = json_encode($calendar_events);
                                     class="w-full appearance-none cursor-pointer bg-slate-800/60 border border-slate-700/60 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 input-glow transition-all [&>option]:bg-slate-900">
                                     <option value="">-- Select Employee --</option>
                                     <?php foreach ($employees as $e): ?>
-                                        <option value="<?= (int)$e['id']; ?>">#<?= (int)$e['id']; ?> <?= htmlspecialchars($e['name']); ?></option>
+                                        <option value="<?= (int)$e['id']; ?>">#<?= (int)$e['id']; ?> <?= htmlspecialchars($e['name']); ?> (<?= htmlspecialchars(ucfirst($e['employee_type'])); ?><?= $e['employee_type'] === 'lab' && !empty($e['lab_name']) ? ' - ' . htmlspecialchars($e['lab_name']) : ''; ?>)</option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
@@ -982,27 +1109,48 @@ $events_json = json_encode($calendar_events);
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            var calendarEl = document.getElementById('calendar');
-            var calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridMonth',
-                height: 520,
-                headerToolbar: {
-                    left: 'prev,next today',
-                    center: 'title',
-                    right: 'dayGridMonth,timeGridWeek'
-                },
-                events: <?= $events_json; ?>,
-                eventClick: function(info) {
-                    if (confirm('Employee Leave: ' + info.event.title + '\nDate: ' + info.event.startStr + '\n\nObata me leave eka cancel karanna oneda?')) {
-                        window.location.href = 'admin.php?action=cancel&id=' + info.event.id;
+            var labEvents = <?= $labEventsJson; ?>;
+            var riderEvents = <?= $riderEventsJson; ?>;
+
+            function createLeaveCalendar(elementId, events, leaveOwner) {
+                var calendar = new FullCalendar.Calendar(document.getElementById(elementId), {
+                    initialView: 'dayGridMonth',
+                    height: 520,
+                    headerToolbar: {
+                        left: 'prev,next today',
+                        center: 'title',
+                        right: 'dayGridMonth,timeGridWeek'
+                    },
+                    events: events,
+                    eventClick: function(info) {
+                        if (confirm(leaveOwner + ' Leave: ' + info.event.title + '\nDate: ' + info.event.startStr + '\n\nObata me leave eka cancel karanna oneda?')) {
+                            window.location.href = 'admin.php?action=cancel&id=' + info.event.id;
+                        }
+                    },
+                    dayMaxEvents: 3,
+                    moreLinkText: function(n) {
+                        return '+' + n + ' more';
                     }
-                },
-                dayMaxEvents: 3,
-                moreLinkText: function(n) {
-                    return '+' + n + ' more';
-                }
+                });
+                calendar.render();
+                return calendar;
+            }
+
+            var labSelect = document.getElementById('labCalendarSelect');
+            var selectedLabId = labSelect.value;
+            var labCalendar = createLeaveCalendar(
+                'calendar',
+                labEvents.filter(function(event) { return String(event.labId) === selectedLabId; }),
+                'Lab'
+            );
+            labSelect.addEventListener('change', function() {
+                labCalendar.removeAllEvents();
+                labCalendar.addEventSource(
+                    labEvents.filter(function(event) { return String(event.labId) === this.value; }, this)
+                );
             });
-            calendar.render();
+
+            createLeaveCalendar('riderCalendar', riderEvents, 'Rider');
         });
     </script>
 </body>
