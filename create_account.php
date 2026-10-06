@@ -31,6 +31,14 @@ function codeExists($conn, $code, $tbl, $excludeId = 0) {
     return (int)$s->fetchColumn() > 0;
 }
 
+function activeLabExists(PDO $conn, int $labId): bool {
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM labs WHERE id = :id AND active = 1");
+    $stmt->execute([':id' => $labId]);
+    return (int)$stmt->fetchColumn() > 0;
+}
+
+$labs = $conn->query("SELECT id, name FROM labs WHERE active = 1 ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
+
 function nextFreeId(PDO $conn, string $table): int {
     if (!in_array($table, ['users', 'admin_users'], true)) return 0;
     $ids  = $conn->query("SELECT id FROM $table ORDER BY id")->fetchAll(PDO::FETCH_COLUMN);
@@ -184,6 +192,8 @@ if ($ownerValid) {
         $position = trim($_POST['position'] ?? '');
         $code     = trim($_POST['code'] ?? '');
         $role     = (($_POST['role'] ?? 'employee') === 'admin') ? 'admin' : 'employee';
+        $employeeType = $_POST['employee_type'] ?? 'lab';
+        $labId = (int)filter_var($_POST['lab_id'] ?? '', FILTER_VALIDATE_INT);
 
         if ($name === '' || $username === '' || $password === '') {
             $error = 'Name, Username saha Password okkoma anivaryayi.';
@@ -195,8 +205,12 @@ if ($ownerValid) {
             $error = 'Username akuru 3-50 (a-z, A-Z, 0-9, . _) witharak venna one.';
         } elseif (strlen($password) < 4 || strlen($password) > 72) {
             $error = 'Password eka akuru 4-72 athara venna one.';
+        } elseif ($role === 'employee' && !in_array($employeeType, ['lab', 'rider'], true)) {
+            $error = 'Employee type eka Lab Employee ho Rider venna one.';
         } elseif ($role === 'employee' && !in_array($shift, ['M', 'E', 'BOTH'], true)) {
             $error = 'Shift eka M / E / BOTH witharak venna one.';
+        } elseif ($role === 'employee' && $employeeType === 'lab' && !activeLabExists($conn, $labId)) {
+            $error = 'Lab employee kenekuta active Lab ekak select karanna.';
         } elseif (mb_strlen($position) > 100) {
             $error = 'Position eka akuru 100 n ithi witharak venna one.';
         } elseif ($code === '') {
@@ -215,10 +229,21 @@ if ($ownerValid) {
                 writeLog('ACCOUNT_CREATED', 'ADMIN account created via create_account: ' . $username . ' (code ' . $code . ')');
                 $success = 'Admin account eka sampurnayenma saduni! Code: ' . $code . ' | Username: ' . $username;
             } else {
-                $stmt = $conn->prepare("INSERT INTO users (id, name, email, password, username, shift_type, position, emp_number) VALUES (:id, :n, :e, :p, :u, :s, :pos, :code)");
-                $stmt->execute([':id' => nextFreeId($conn, 'users'), ':n' => $name, ':e' => null, ':p' => $hash, ':u' => $username, ':s' => $shift, ':pos' => $position, ':code' => $code]);
-                writeLog('ACCOUNT_CREATED', 'Employee account created via create_account: ' . $username . ' (' . $shift . ') code ' . $code);
-                $success = 'Employee account eka sampurnayenma saduni! Code: ' . $code . ' | Username: ' . $username;
+                $stmt = $conn->prepare("INSERT INTO users (id, name, email, password, username, shift_type, position, emp_number, employee_type, lab_id) VALUES (:id, :n, :e, :p, :u, :s, :pos, :code, :employee_type, :lab_id)");
+                $stmt->execute([
+                    ':id' => nextFreeId($conn, 'users'),
+                    ':n' => $name,
+                    ':e' => null,
+                    ':p' => $hash,
+                    ':u' => $username,
+                    ':s' => $shift,
+                    ':pos' => $position,
+                    ':code' => $code,
+                    ':employee_type' => $employeeType,
+                    ':lab_id' => $employeeType === 'lab' ? $labId : null
+                ]);
+                writeLog('ACCOUNT_CREATED', ucfirst($employeeType) . ' account created via create_account: ' . $username . ' (' . $shift . ') code ' . $code);
+                $success = ucfirst($employeeType) . ' account eka sampurnayenma saduni! Code: ' . $code . ' | Username: ' . $username;
             }
         }
     }
@@ -231,6 +256,8 @@ if ($ownerValid) {
         $emp_position = trim($_POST['emp_position'] ?? '');
         $emp_pass     = $_POST['emp_new_password'] ?? '';
         $emp_code     = trim($_POST['emp_code'] ?? '');
+        $employeeType = $_POST['emp_type'] ?? 'lab';
+        $labId = (int)filter_var($_POST['emp_lab_id'] ?? '', FILTER_VALIDATE_INT);
 
         if ($emp_name === '' || $emp_username === '' || $emp_shift === '' || $emp_pass === '') {
             $error = 'Name, Username, Shift saha Password okkoma anivaryayi.';
@@ -238,8 +265,12 @@ if ($ownerValid) {
             $error = 'Name eka akuru 2-100 athara venna one.';
         } elseif (!validUsernameFormat($emp_username)) {
             $error = 'Username akuru 3-50 (a-z, A-Z, 0-9, . _) witharak venna one.';
+        } elseif (!in_array($employeeType, ['lab', 'rider'], true)) {
+            $error = 'Employee type eka Lab Employee ho Rider venna one.';
         } elseif (!in_array($emp_shift, ['M', 'E', 'BOTH'], true)) {
             $error = 'Shift eka M / E / BOTH witharak venna one.';
+        } elseif ($employeeType === 'lab' && !activeLabExists($conn, $labId)) {
+            $error = 'Lab employee kenekuta active Lab ekak select karanna.';
         } elseif (strlen($emp_pass) < 4 || strlen($emp_pass) > 72) {
             $error = 'Password eka akuru 4-72 athara venna one.';
         } elseif ($emp_code === '') {
@@ -252,10 +283,20 @@ if ($ownerValid) {
             $error = 'Me username eka danata use karana. Vena ekak danna.';
         } else {
             $newEmpId = nextFreeId($conn, 'users');
-            $stmt = $conn->prepare("INSERT INTO users (id, name, username, password, shift_type, position, emp_number) VALUES (:id, :n, :u, :p, :s, :pos, :code)");
-            $stmt->execute([':id' => $newEmpId, ':n' => $emp_name, ':u' => $emp_username, ':p' => password_hash($emp_pass, PASSWORD_DEFAULT), ':s' => $emp_shift, ':pos' => $emp_position !== '' ? $emp_position : null, ':code' => $emp_code]);
-            writeLog('EMP_CREATED', 'Employee created: ' . $emp_username . ' (#' . $newEmpId . ') code ' . $emp_code);
-            $success = 'Employee ' . htmlspecialchars($emp_name) . ' saduni! Code: ' . htmlspecialchars($emp_code) . ' | Username: ' . $emp_username;
+            $stmt = $conn->prepare("INSERT INTO users (id, name, username, password, shift_type, position, emp_number, employee_type, lab_id) VALUES (:id, :n, :u, :p, :s, :pos, :code, :employee_type, :lab_id)");
+            $stmt->execute([
+                ':id' => $newEmpId,
+                ':n' => $emp_name,
+                ':u' => $emp_username,
+                ':p' => password_hash($emp_pass, PASSWORD_DEFAULT),
+                ':s' => $emp_shift,
+                ':pos' => $emp_position !== '' ? $emp_position : null,
+                ':code' => $emp_code,
+                ':employee_type' => $employeeType,
+                ':lab_id' => $employeeType === 'lab' ? $labId : null
+            ]);
+            writeLog('EMP_CREATED', ucfirst($employeeType) . ' created: ' . $emp_username . ' (#' . $newEmpId . ') code ' . $emp_code);
+            $success = ucfirst($employeeType) . ' ' . htmlspecialchars($emp_name) . ' saduni! Code: ' . htmlspecialchars($emp_code) . ' | Username: ' . $emp_username;
         }
     }
 
@@ -635,6 +676,26 @@ $admins    = $conn->query("SELECT * FROM admin_users ORDER BY id")->fetchAll(PDO
                         class="w-full bg-slate-800/70 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 input-glow transition-all">
                 </div>
             </div>
+            <div id="employeeTypeWrap" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Employee Type</label>
+                    <select name="employee_type" id="createEmployeeType" onchange="toggleCreateEmployeeType()"
+                        class="w-full bg-slate-800/70 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 input-glow transition-all [&>option]:bg-slate-900">
+                        <option value="lab">Lab Employee</option>
+                        <option value="rider">Rider</option>
+                    </select>
+                </div>
+                <div id="createLabWrap">
+                    <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Lab <span class="text-rose-400">*</span></label>
+                    <select name="lab_id" id="createLabId"
+                        class="w-full bg-slate-800/70 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 input-glow transition-all [&>option]:bg-slate-900">
+                        <option value="">-- Select Lab --</option>
+                        <?php foreach ($labs as $lab): ?>
+                            <option value="<?= (int)$lab['id']; ?>"><?= htmlspecialchars($lab['name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Password</label>
@@ -718,6 +779,21 @@ $admins    = $conn->query("SELECT * FROM admin_users ORDER BY id")->fetchAll(PDO
                             </select>
                             <input type="text" name="emp_position" placeholder="Position"
                                 class="w-full bg-slate-800/70 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
+                        </div>
+                        <select name="emp_type" id="addEmployeeType" onchange="toggleAddEmployeeType()"
+                            class="w-full bg-slate-800/70 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 input-glow transition-all [&>option]:bg-slate-900">
+                            <option value="lab">Lab Employee</option>
+                            <option value="rider">Rider</option>
+                        </select>
+                        <div id="addEmployeeLabWrap">
+                            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Lab <span class="text-rose-400">*</span></label>
+                            <select name="emp_lab_id" id="addEmployeeLabId"
+                                class="w-full bg-slate-800/70 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 input-glow transition-all [&>option]:bg-slate-900">
+                                <option value="">-- Select Lab --</option>
+                                <?php foreach ($labs as $lab): ?>
+                                    <option value="<?= (int)$lab['id']; ?>"><?= htmlspecialchars($lab['name']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
                         <input type="password" name="emp_new_password" required placeholder="Password (min 4)"
                             class="w-full bg-slate-800/70 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 input-glow transition-all">
@@ -987,6 +1063,7 @@ $admins    = $conn->query("SELECT * FROM admin_users ORDER BY id")->fetchAll(PDO
 function toggleCreateRole() {
     const role = document.getElementById('createRole').value;
     document.getElementById('shiftWrap').style.display = role === 'employee' ? '' : 'none';
+    document.getElementById('employeeTypeWrap').style.display = role === 'employee' ? '' : 'none';
     const lbl = document.getElementById('createCodeLabel');
     const ph  = document.getElementById('createCode');
     if (role === 'admin') {
@@ -996,6 +1073,17 @@ function toggleCreateRole() {
         lbl.textContent = 'Employee Code';
         ph.placeholder  = 'ud ah: EMP001';
     }
+    toggleCreateEmployeeType();
+}
+function toggleCreateEmployeeType() {
+    const isLabEmployee = document.getElementById('createEmployeeType').value === 'lab';
+    document.getElementById('createLabWrap').style.display = isLabEmployee ? '' : 'none';
+    document.getElementById('createLabId').required = isLabEmployee && document.getElementById('createRole').value === 'employee';
+}
+function toggleAddEmployeeType() {
+    const isLabEmployee = document.getElementById('addEmployeeType').value === 'lab';
+    document.getElementById('addEmployeeLabWrap').style.display = isLabEmployee ? '' : 'none';
+    document.getElementById('addEmployeeLabId').required = isLabEmployee;
 }
 function showDeletePrompt(id) {
     document.getElementById('deleteEmpId').value = id;
@@ -1028,6 +1116,7 @@ document.querySelectorAll('[data-set-code]').forEach(function(btn) {
     });
 });
 if (document.getElementById('createRole')) toggleCreateRole();
+if (document.getElementById('addEmployeeType')) toggleAddEmployeeType();
 </script>
 </body>
 </html>

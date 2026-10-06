@@ -54,6 +54,14 @@ Rules are stored in the DB (`app_settings`) and can be changed live from the adm
 
 **Important (fix that makes it sellable):** the old engine was hard-wired to staff IDs `#1..#12` of the original AKK team. The engine (`leaveManagementEngine.php`) is now **generic**: it counts actual staff by their `shift_type` (`M` / `E` / `BOTH`) from the `users` table, so it works for ANY company size. The `#1..#12` rules are now optional and locked behind `use_dependency_rules`.
 
+### Labs and Riders
+
+- Existing employees are assigned to **Main Lab** automatically when the database schema is upgraded.
+- Admins can add Labs in **Admin → Manage Employees → Manage Labs**. Assign Lab employees during account creation, or update their Lab from the employee management form.
+- Rider accounts use the existing employee sign-in, leave application, validation, and approval workflow. Select **Rider** when creating the account; Riders do not need a Lab assignment.
+- The Admin dashboard has separate Lab and Rider leave calendars. The Lab calendar can be filtered by Lab; the Rider calendar contains only Rider leaves.
+- Leave rows remain linked to the existing `users` records, so their Lab is determined by the employee's assigned Lab. No existing leave requests are rewritten.
+
 ---
 
 ## 4. Selling to a new client (each client = own InfinityFree + own DB)

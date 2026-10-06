@@ -125,10 +125,10 @@ $calStmt = $conn->prepare("
     SELECT lr.leave_date, lr.shift_applied, lr.status, u.id as user_id, u.name as user_name 
     FROM leave_requests lr 
     JOIN users u ON lr.user_id = u.id 
-    WHERE lr.leave_date >= CURDATE() AND lr.status IN ('Approved')
+    WHERE lr.leave_date >= :today AND lr.status IN ('Approved')
     ORDER BY lr.leave_date ASC, u.id ASC
 ");
-$calStmt->execute();
+$calStmt->execute([':today' => date('Y-m-d')]);
 $allLeaves = $calStmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Group leaves by date for calendar display

@@ -13,10 +13,10 @@ if (session_status() === PHP_SESSION_NONE) {
    - Local PC testing (localhost) -> SQLite auto mode (mekedi edit karanna epa)
    ===================================================================== */
 
-$DB_HOST = 'sql105.infinityfree.com';      // MySQL Host Name
-$DB_NAME = 'if0_43000401_leavesystem';     // Database Name
-$DB_USER = 'if0_43000401';                 // Database Username
-$DB_PASS = 'keshara2005';              // Database Password
+// $DB_HOST = 'sql105.infinityfree.com';      // MySQL Host Name
+// $DB_NAME = 'if0_43000401_leavesystem';     // Database Name
+// $DB_USER = 'if0_43000401';                 // Database Username
+// $DB_PASS = 'keshara2005';              // Database Password
 
 /* Register page (Create Account) eken ADMIN account hadanna one nam
    me key eka danna one. Me key eka JAHA AYARU KARANNA EPAA.
@@ -52,7 +52,15 @@ if ($isLocal || PHP_SAPI === 'cli') {
         username TEXT UNIQUE,
         shift_type TEXT NOT NULL DEFAULT 'M',
         position TEXT,
-        emp_number TEXT
+        emp_number TEXT,
+        employee_type TEXT NOT NULL DEFAULT 'lab',
+        lab_id INTEGER
+    )");
+
+    $conn->exec("CREATE TABLE IF NOT EXISTS labs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        active INTEGER NOT NULL DEFAULT 1
     )");
 
     $conn->exec("CREATE TABLE IF NOT EXISTS admin_users (
@@ -128,8 +136,18 @@ if ($isLocal || PHP_SAPI === 'cli') {
         shift_type VARCHAR(5) NOT NULL DEFAULT 'M',
         position VARCHAR(100) DEFAULT NULL,
         emp_number VARCHAR(50) DEFAULT NULL,
+        employee_type VARCHAR(10) NOT NULL DEFAULT 'lab',
+        lab_id INT UNSIGNED DEFAULT NULL,
         PRIMARY KEY (id),
         UNIQUE KEY uk_users_username (username)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $conn->exec("CREATE TABLE IF NOT EXISTS labs (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        name VARCHAR(100) NOT NULL,
+        active TINYINT(1) NOT NULL DEFAULT 1,
+        PRIMARY KEY (id),
+        UNIQUE KEY uk_labs_name (name)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
     $conn->exec("CREATE TABLE IF NOT EXISTS admin_users (
@@ -157,6 +175,41 @@ if ($isLocal || PHP_SAPI === 'cli') {
         PRIMARY KEY (id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }
+
+function databaseColumnExists(PDO $conn, string $table, string $column): bool {
+    if ($conn->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql') {
+        $stmt = $conn->query("SHOW COLUMNS FROM `$table` WHERE Field = " . $conn->quote($column));
+        return (bool)$stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    $stmt = $conn->query("PRAGMA table_info(`$table`)");
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        if ($row['name'] === $column) {
+            return true;
+        }
+    }
+    return false;
+}
+
+if (!databaseColumnExists($conn, 'users', 'employee_type')) {
+    $conn->exec($conn->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql'
+        ? "ALTER TABLE users ADD COLUMN employee_type VARCHAR(10) NOT NULL DEFAULT 'lab'"
+        : "ALTER TABLE users ADD COLUMN employee_type TEXT NOT NULL DEFAULT 'lab'");
+}
+if (!databaseColumnExists($conn, 'users', 'lab_id')) {
+    $conn->exec($conn->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql'
+        ? "ALTER TABLE users ADD COLUMN lab_id INT UNSIGNED DEFAULT NULL"
+        : "ALTER TABLE users ADD COLUMN lab_id INTEGER");
+}
+
+if ($conn->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql') {
+    $conn->exec("INSERT INTO labs (name) VALUES ('Main Lab') ON DUPLICATE KEY UPDATE name = 'Main Lab'");
+} else {
+    $conn->exec("INSERT INTO labs (name) VALUES ('Main Lab') ON CONFLICT(name) DO NOTHING");
+}
+$mainLabId = (int)$conn->query("SELECT id FROM labs WHERE name = 'Main Lab'")->fetchColumn();
+$stmt = $conn->prepare("UPDATE users SET lab_id = :lab_id WHERE employee_type = 'lab' AND lab_id IS NULL");
+$stmt->execute([':lab_id' => $mainLabId]);
 
 /* =====================================================================
    APP SETTINGS + SYSTEM LOGS
