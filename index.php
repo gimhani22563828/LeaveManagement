@@ -26,7 +26,8 @@ if (isset($_POST['apply_leave'])) {
     $targetDate = new DateTime($leave_date);
     $diff = $today->diff($targetDate);
     
-    $is_notice_short = ($diff->invert == 0 && $diff->days < 5);
+    $is_past_date = ($diff->invert == 1 && $diff->days > 0);
+    $is_notice_short = ($is_past_date || ($diff->invert == 0 && $diff->days < 5));
     $is_emergency = (isset($_POST['is_emergency']) || $is_notice_short) ? 1 : 0;
 
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $leave_date) || strtotime($leave_date) === false) {
@@ -85,7 +86,13 @@ if (isset($_POST['apply_leave'])) {
             }
         } else {
             // දින 5ට අඩු නම් හෝ අනිත් Rules කැඩුණොත් Emergency ලෙස Admin අනුමැතියට යොමු වේ
-            $reject_reason = $is_notice_short ? "දින 5ක පූර්ව දැනුම්දීමක් නොමැති නිසා (Emergency Review)" : $result['reason'];
+            if ($is_past_date) {
+                $reject_reason = "අතීත දිනයක් ($leave_date) සඳහා ඉල්ලීම — Admin අනුමැතිය අවශ්‍ය වේ (Backdated Leave Review)";
+            } elseif ($is_notice_short) {
+                $reject_reason = "දින 5ක පූර්ව දැනුම්දීමක් නොමැති නිසා (Emergency Review)";
+            } else {
+                $reject_reason = $result['reason'];
+            }
             if ($is_emergency) {
                 $status = 'Pending';
                 $stmt = $conn->prepare("INSERT INTO leave_requests (user_id, leave_date, shift_applied, is_emergency, reason, status)
@@ -125,10 +132,10 @@ $calStmt = $conn->prepare("
     SELECT lr.leave_date, lr.shift_applied, lr.status, u.id as user_id, u.name as user_name 
     FROM leave_requests lr 
     JOIN users u ON lr.user_id = u.id 
-    WHERE lr.leave_date >= :today AND lr.status IN ('Approved')
-    ORDER BY lr.leave_date ASC, u.id ASC
+    WHERE lr.status IN ('Approved')
+    ORDER BY lr.leave_date DESC, u.id ASC
 ");
-$calStmt->execute([':today' => date('Y-m-d')]);
+$calStmt->execute([]);
 $allLeaves = $calStmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Group leaves by date for calendar display
@@ -284,7 +291,7 @@ foreach ($allLeaves as $l) {
                                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                         <i class="fa-solid fa-calendar-day text-slate-500 text-sm"></i>
                                     </div>
-                                    <input type="date" name="leave_date" required min="<?= date('Y-m-d'); ?>"
+                                    <input type="date" name="leave_date" required
                                         class="w-full bg-slate-900/60 border border-slate-700/60 rounded-xl pl-11 pr-4 py-3.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 input-glow transition-all">
                                 </div>
                             </div>
