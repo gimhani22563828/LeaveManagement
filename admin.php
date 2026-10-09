@@ -929,7 +929,7 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1.5">Leave Date</label>
-                                    <input type="date" name="assign_date" required min="<?= date('Y-m-d'); ?>"
+                                    <input type="date" name="assign_date" required
                                         class="w-full bg-slate-800/60 border border-slate-700/60 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 input-glow transition-all">
                                 </div>
                                 <div>
