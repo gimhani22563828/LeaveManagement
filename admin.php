@@ -461,6 +461,16 @@ $cfgMinEvening  = (int)getSetting($conn, 'min_evening_staff', 3);
 $cfgUseDepRules = (int)getSetting($conn, 'use_dependency_rules', 0) === 1;
 
 // --- Calendar Events ---
+function leaveCalendarAppearance(string $leaveDate, string $today): array {
+    if ($leaveDate < $today) {
+        return ['color' => '#64748b', 'classNames' => ['leave-past']];
+    }
+    if ($leaveDate === $today) {
+        return ['color' => '#f59e0b', 'classNames' => ['leave-today']];
+    }
+    return ['color' => '#10b981', 'classNames' => ['leave-upcoming']];
+}
+
 $stmt = $conn->query("SELECT lr.id, lr.leave_date, lr.shift_applied, u.name, u.id AS user_id, u.lab_id
                       FROM leave_requests lr
                       JOIN users u ON lr.user_id = u.id
@@ -469,11 +479,13 @@ $labLeaveRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $labCalendarEvents = [];
 foreach ($labLeaveRows as $row) {
+    $appearance = leaveCalendarAppearance((string)$row['leave_date'], $today);
     $labCalendarEvents[] = [
         'id' => $row['id'],
         'title' => '#' . $row['user_id'] . ' ' . $row['name'] . ' (' . $row['shift_applied'] . ')',
         'start' => $row['leave_date'],
-        'color' => ($row['shift_applied'] == 'M') ? '#3b82f6' : '#a855f7',
+        'color' => $appearance['color'],
+        'classNames' => $appearance['classNames'],
         'labId' => (int)$row['lab_id']
     ];
 }
@@ -487,11 +499,13 @@ $riderLeaveRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $riderCalendarEvents = [];
 foreach ($riderLeaveRows as $row) {
+    $appearance = leaveCalendarAppearance((string)$row['leave_date'], $today);
     $riderCalendarEvents[] = [
         'id' => $row['id'],
         'title' => '#' . $row['user_id'] . ' ' . $row['name'] . ' (' . $row['shift_applied'] . ')',
         'start' => $row['leave_date'],
-        'color' => ($row['shift_applied'] == 'M') ? '#3b82f6' : '#a855f7'
+        'color' => $appearance['color'],
+        'classNames' => $appearance['classNames']
     ];
 }
 $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_THROW_ON_ERROR);
@@ -521,6 +535,9 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
         .fc .fc-daygrid-day-number { color: #94a3b8; font-size: 0.8rem; text-decoration: none !important; padding: 6px !important; }
         .fc .fc-daygrid-day.fc-day-today { background: rgba(99, 102, 241, 0.06) !important; }
         .fc-event { border-radius: 8px !important; padding: 3px 7px !important; font-size: 0.7rem !important; border: none !important; font-weight: 500 !important; cursor: pointer; }
+        .fc-event.leave-past { opacity: 0.45; filter: grayscale(1) blur(0.35px); }
+        .fc-event.leave-today { font-weight: 700 !important; box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.35); }
+        .fc-event.leave-upcoming { font-weight: 600 !important; }
         .fc .fc-col-header-cell { padding: 10px 0 !important; font-size: 0.7rem !important; font-weight: 600 !important; color: #94a3b8 !important; text-transform: uppercase !important; letter-spacing: 0.05em !important; }
         .fc-scrollgrid { border-radius: 12px !important; overflow: hidden !important; }
         .fc-scrollgrid-sync-table { background: rgba(15, 23, 42, 0.4) !important; }
@@ -762,8 +779,9 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
                             </select>
                         </label>
                         <div class="flex items-center gap-4 text-[11px]">
-                            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> Morning (M)</span>
-                            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span> Evening (E)</span>
+                            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-500 opacity-50"></span> Past</span>
+                            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Today</span>
+                            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Upcoming</span>
                         </div>
                     </div>
                 </div>
@@ -774,16 +792,17 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
             <!-- Rider Calendar -->
             <?php if ($adminPage === 'rider-calendar'): ?>
             <div id="rider-calendar-section" class="card-glass border border-slate-700/40 rounded-2xl p-6 overflow-hidden">
-                <div class="flex items-center justify-between mb-5">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
                     <div class="flex items-center gap-3">
                         <div class="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
                             <i class="fa-solid fa-motorcycle text-amber-400 text-sm"></i>
                         </div>
                         <h2 class="font-bold text-white text-sm">Rider Leave Calendar</h2>
                     </div>
-                    <div class="flex items-center gap-4 text-[11px]">
-                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> Morning (M)</span>
-                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span> Evening (E)</span>
+                    <div class="flex flex-wrap items-center gap-4 text-[11px]">
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-500 opacity-50"></span> Past</span>
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Today</span>
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Upcoming</span>
                     </div>
                 </div>
                 <div id="riderCalendar" class="min-h-[500px]"></div>
