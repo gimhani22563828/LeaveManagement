@@ -1,3 +1,7 @@
 [2026-10-05 18:47:32] | LOGOUT       | ID:1    | lahiru          | employee | IP:127.0.0.1       | @lahiru     | User logged out
 [2026-10-05 18:52:49] | LOGOUT       | ID:1    | admin           | admin    | IP:127.0.0.1       | @admin      | User logged out
 [2026-10-05 18:54:04] | LOGOUT       | ID:1    | lahiru          | employee | IP:127.0.0.1       | @lahiru     | User logged out
+[2026-10-26 11:27:10] | LOGOUT       | ID:1    | admin           | admin    | IP:127.0.0.1       | @admin      | User logged out
+[2026-10-26 11:28:00] | LOGOUT       | ID:3    | kaveen          | employee | IP:127.0.0.1       | @kaveen     | User logged out
+[2026-10-26 11:28:48] | LOGOUT       | ID:1    | admin           | admin    | IP:127.0.0.1       | @admin      | User logged out
+[2026-10-26 11:29:09] | LOGOUT       | ID:2    | keshara         | employee | IP:127.0.0.1       | @keshara    | User logged out
