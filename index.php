@@ -2,6 +2,13 @@
 include 'db.php';
 include 'auth.php';
 include 'logger.php';
+
+// Public visitors start at the landing page; signed-in users keep their employee/admin routing.
+if (!isLoggedIn()) {
+    header('Location: home.php');
+    exit();
+}
+
 requireEmployee();
 
 $currentUser = getCurrentUser();

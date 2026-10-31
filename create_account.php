@@ -598,7 +598,7 @@ $admins    = $conn->query("SELECT * FROM admin_users ORDER BY id")->fetchAll(PDO
             </div>
         </div>
         <div class="flex items-center gap-2">
-            <a href="index.php" class="text-xs font-semibold text-indigo-400 hover:text-indigo-300 px-3 py-2 rounded-xl bg-slate-800/50 border border-slate-700/50 transition">
+            <a href="home.php" class="text-xs font-semibold text-indigo-400 hover:text-indigo-300 px-3 py-2 rounded-xl bg-slate-800/50 border border-slate-700/50 transition">
                 <i class="fa-solid fa-house"></i> Home
             </a>
             <a href="login.php" class="text-xs font-semibold text-rose-400 hover:text-rose-300 px-3 py-2 rounded-xl bg-slate-800/50 border border-slate-700/50 transition">
