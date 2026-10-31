@@ -2,6 +2,13 @@
 include 'db.php';
 include 'auth.php';
 include 'logger.php';
+
+// Public visitors start at the landing page; signed-in users keep their employee/admin routing.
+if (!isLoggedIn()) {
+    header('Location: home.php');
+    exit();
+}
+
 requireEmployee();
 
 $currentUser = getCurrentUser();
@@ -12,6 +19,15 @@ $me = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$me) {
     header("Location: logout.php");
     exit();
+}
+
+$portalPages = [
+    'apply' => 'Submit Your Leave Request',
+    'calendar' => 'View Leave Calendar',
+];
+$portalPage = $_GET['page'] ?? 'apply';
+if (!is_string($portalPage) || !isset($portalPages[$portalPage])) {
+    $portalPage = 'apply';
 }
 
 $message = "";
@@ -120,22 +136,45 @@ if (isset($_POST['apply_leave'])) {
     }
 }
 
-// Fetch all approved/pending leaves for Calendar view
+// Show leave events for the current employee type only.
 $calStmt = $conn->prepare("
-    SELECT lr.leave_date, lr.shift_applied, lr.status, u.id as user_id, u.name as user_name 
+    SELECT lr.leave_date, lr.shift_applied, lr.status, u.id as user_id, u.name as user_name
     FROM leave_requests lr 
     JOIN users u ON lr.user_id = u.id 
-    WHERE lr.leave_date >= :today AND lr.status IN ('Approved')
-    ORDER BY lr.leave_date ASC, u.id ASC
+    WHERE lr.status = 'Approved'
+      AND u.employee_type = :employee_type
+    ORDER BY lr.leave_date ASC, u.name ASC
 ");
-$calStmt->execute([':today' => date('Y-m-d')]);
+$calStmt->execute([
+    ':employee_type' => ($me['employee_type'] ?? 'lab') === 'rider' ? 'rider' : 'lab',
+]);
 $allLeaves = $calStmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Group leaves by date for calendar display
-$leavesByDate = [];
+$calendarEvents = [];
+$calendarToday = date('Y-m-d');
 foreach ($allLeaves as $l) {
-    $leavesByDate[$l['leave_date']][] = $l;
+    if ($l['leave_date'] < $calendarToday) {
+        $color = '#64748b';
+        $classNames = ['leave-past'];
+    } elseif ($l['leave_date'] === $calendarToday) {
+        $color = '#f59e0b';
+        $classNames = ['leave-today'];
+    } else {
+        $color = '#10b981';
+        $classNames = ['leave-upcoming'];
+    }
+
+    $calendarEvents[] = [
+        'title' => '#' . $l['user_id'] . ' ' . $l['user_name'] . ' (' . $l['shift_applied'] . ')',
+        'start' => $l['leave_date'],
+        'color' => $color,
+        'classNames' => $classNames,
+    ];
 }
+$calendarEventsJson = json_encode(
+    $calendarEvents,
+    JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_THROW_ON_ERROR
+);
 ?>
 
 <!DOCTYPE html>
@@ -147,6 +186,7 @@ foreach ($allLeaves as $l) {
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
     <style>
         * { font-family: 'Inter', sans-serif; }
         .input-glow:focus { box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15); }
@@ -154,6 +194,28 @@ foreach ($allLeaves as $l) {
         .btn-shine { position: relative; overflow: hidden; }
         .btn-shine::after { content: ''; position: absolute; top: -50%; left: -60%; width: 200%; height: 200%; background: linear-gradient(60deg, transparent 40%, rgba(255,255,255,0.06) 50%, transparent 60%); animation: btnShine 3s ease-in-out infinite; }
         @keyframes btnShine { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+        .portal-sidebar-link { transition: all 0.2s ease; }
+        .portal-sidebar-link:hover { background: rgba(99, 102, 241, 0.08); }
+        .portal-sidebar-link.active { background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.1)); border: 1px solid rgba(99, 102, 241, 0.2); color: #a5b4fc; }
+        .fc { border-color: rgba(51, 65, 85, 0.5) !important; }
+        .fc .fc-toolbar-title { font-size: 1rem !important; font-weight: 700; color: white; }
+        .fc .fc-button-primary { background-color: #4f46e5 !important; border: none !important; border-radius: 10px !important; padding: 6px 14px !important; font-size: 0.75rem !important; }
+        .fc .fc-button-primary:hover { background-color: #4338ca !important; }
+        .fc .fc-button-primary:disabled { background-color: rgba(79, 70, 229, 0.4) !important; }
+        .fc-theme-standard td, .fc-theme-standard th { border-color: rgba(51, 65, 85, 0.35) !important; }
+        .fc .fc-daygrid-day-number { color: #94a3b8; font-size: 0.8rem; text-decoration: none !important; padding: 6px !important; }
+        .fc .fc-daygrid-day.fc-day-today { background: rgba(99, 102, 241, 0.06) !important; }
+        .fc-event { border-radius: 8px !important; padding: 3px 7px !important; font-size: 0.7rem !important; border: none !important; font-weight: 600 !important; }
+        .fc-event.leave-past { opacity: 0.45; filter: grayscale(1) blur(0.35px); }
+        .fc-event.leave-today { font-weight: 700 !important; box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.35); }
+        .fc .fc-col-header-cell { padding: 10px 0 !important; font-size: 0.7rem !important; font-weight: 600 !important; color: #94a3b8 !important; text-transform: uppercase !important; letter-spacing: 0.05em !important; }
+        .fc-scrollgrid { border-radius: 12px !important; overflow: hidden !important; }
+        .fc-scrollgrid-sync-table { background: rgba(15, 23, 42, 0.4) !important; }
+        @media (max-width: 640px) {
+            .fc .fc-toolbar { flex-wrap: wrap; gap: 0.75rem; }
+            .fc .fc-toolbar-title { font-size: 0.9rem !important; }
+            .fc .fc-button-primary { padding: 5px 8px !important; font-size: 0.65rem !important; }
+        }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen antialiased">
@@ -165,10 +227,55 @@ foreach ($allLeaves as $l) {
         <div class="absolute inset-0" style="background-image: radial-gradient(rgba(99, 102, 241, 0.04) 1px, transparent 1px); background-size: 32px 32px;"></div>
     </div>
 
+    <aside id="portalSidebar" class="w-72 max-w-[85vw] bg-slate-950/95 backdrop-blur-xl border-r border-slate-800/60 flex flex-col justify-between hidden fixed inset-y-0 left-0 z-[60] overflow-y-auto lg:flex">
+        <div>
+            <div class="h-16 flex items-center px-6 border-b border-slate-800/60 gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <span class="text-sm font-black text-white">AK</span>
+                </div>
+                <div>
+                    <span class="text-lg font-bold tracking-tight text-white">AKK <span class="text-indigo-400">SOLUTIONS</span></span>
+                    <p class="text-[10px] text-slate-500 font-medium">Employee Portal</p>
+                </div>
+            </div>
+            <nav class="p-4 space-y-1.5" aria-label="Employee navigation">
+                <a href="index.php?page=apply" class="portal-sidebar-link flex items-center gap-3 px-4 py-3 text-sm rounded-xl <?= $portalPage === 'apply' ? 'active font-semibold' : 'font-medium text-slate-400'; ?>" <?= $portalPage === 'apply' ? 'aria-current="page"' : ''; ?>>
+                    <i class="fa-solid fa-paper-plane w-5 text-center"></i> Submit Your Leave Request
+                </a>
+                <a href="index.php?page=calendar" class="portal-sidebar-link flex items-center gap-3 px-4 py-3 text-sm rounded-xl <?= $portalPage === 'calendar' ? 'active font-semibold' : 'font-medium text-slate-400'; ?>" <?= $portalPage === 'calendar' ? 'aria-current="page"' : ''; ?>>
+                    <i class="fa-solid fa-calendar-days w-5 text-center"></i> <?= htmlspecialchars($portalPages['calendar']); ?>
+                </a>
+                <a href="my_leaves.php" class="portal-sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">
+                    <i class="fa-solid fa-list-check w-5 text-center"></i> View / Cancel Submitted Leaves
+                </a>
+                <a href="my_logs.php" class="portal-sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">
+                    <i class="fa-solid fa-clock-rotate-left w-5 text-center"></i> Activity Logs
+                </a>
+            </nav>
+        </div>
+        <div class="p-4 border-t border-slate-800/60">
+            <div class="flex items-center gap-3 px-2">
+                <div class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-slate-700/50 flex items-center justify-center text-indigo-400 text-xs font-bold">
+                    <?= strtoupper(substr($currentUser['name'], 0, 2)); ?>
+                </div>
+                <div class="text-xs flex-1 min-w-0">
+                    <p class="font-semibold text-white truncate"><?= htmlspecialchars($currentUser['name']); ?></p>
+                    <p class="text-slate-500">Employee</p>
+                </div>
+                <a href="logout.php" class="text-slate-500 hover:text-rose-400 transition p-1.5 rounded-lg hover:bg-slate-800/50" title="Logout">
+                    <i class="fa-solid fa-right-from-bracket text-sm"></i>
+                </a>
+            </div>
+        </div>
+    </aside>
+
     <!-- Top Navbar -->
-    <nav class="fixed top-0 inset-x-0 z-50 bg-slate-950/70 backdrop-blur-xl border-b border-slate-800/60">
+    <nav class="fixed top-0 inset-x-0 lg:left-72 z-50 bg-slate-950/70 backdrop-blur-xl border-b border-slate-800/60">
         <div class="max-w-7xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
+                <button id="portalSidebarToggle" type="button" aria-controls="portalSidebar" aria-expanded="false" onclick="togglePortalSidebar()" class="lg:hidden text-slate-400 hover:text-white transition p-2 rounded-lg hover:bg-slate-800/50" aria-label="Toggle navigation">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
                 <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
                     <span class="text-sm font-black text-white">AK</span>
                 </div>
@@ -192,9 +299,9 @@ foreach ($allLeaves as $l) {
     </nav>
 
     <!-- Main Content -->
-    <div class="relative z-10 pt-24 pb-12 px-4 md:px-8">
+    <main class="relative z-10 lg:ml-72 pt-24 pb-12 px-4 md:px-8">
         <div class="max-w-6xl mx-auto space-y-8">
-            
+            <?php if ($portalPage === 'apply'): ?>
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 <!-- Left: Info Panel -->
                 <div class="lg:col-span-4 space-y-5">
@@ -346,66 +453,72 @@ foreach ($allLeaves as $l) {
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
 
-            <!-- Calendar / Staff Leave Schedule Section -->
+            <!-- Member-type leave calendar -->
+            <?php if ($portalPage === 'calendar'): ?>
             <div class="card-glass border border-slate-700/50 rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
-                <div class="flex items-center justify-between mb-6">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 rounded-xl bg-indigo-500/15 flex items-center justify-center text-indigo-400">
                             <i class="fa-solid fa-calendar-days text-lg"></i>
                         </div>
                         <div>
-                            <h2 class="text-lg font-bold text-white">Staff Leave Calendar / Schedule</h2>
-                            <p class="text-xs text-slate-400">Upcoming leaves of all team members</p>
+                            <h2 class="text-lg font-bold text-white"><?= htmlspecialchars($portalPages['calendar']); ?></h2>
+                            <p class="text-xs text-slate-400"><?= ($me['employee_type'] ?? 'lab') === 'rider' ? 'Rider leave calendar' : 'Lab staff leave calendar'; ?></p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-3 text-xs">
-                        <span class="flex items-center gap-1.5 text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
-                            <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Approved
-                        </span>
-                        <span class="flex items-center gap-1.5 text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
-                            <span class="w-2 h-2 rounded-full bg-amber-400"></span> Pending
-                        </span>
+                    <div class="flex flex-wrap items-center gap-3 text-[11px]">
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-500 opacity-50"></span> Past</span>
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Today</span>
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Upcoming</span>
                     </div>
                 </div>
-
-                <?php if (empty($leavesByDate)): ?>
-                    <div class="text-center py-8 text-slate-500 text-xs">
-                        <i class="fa-regular fa-calendar-xmark text-3xl mb-2 block"></i>
-                        No upcoming leaves scheduled.
-                    </div>
-                <?php else: ?>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <?php foreach ($leavesByDate as $date => $leaves): ?>
-                            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
-                                <div class="text-xs font-bold text-indigo-400 mb-3 pb-2 border-b border-slate-800 flex items-center justify-between">
-                                    <span><i class="fa-regular fa-calendar mr-1.5"></i> <?= date('D, M d, Y', strtotime($date)); ?></span>
-                                    <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded-full text-slate-400"><?= count($leaves); ?> Leave(s)</span>
-                                </div>
-                                <div class="space-y-2">
-                                    <?php foreach ($leaves as $l): ?>
-                                        <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/50 border border-slate-800/80">
-                                            <div class="flex items-center gap-2">
-                                                <div class="w-6 h-6 rounded-lg bg-indigo-500/20 flex items-center justify-center text-[10px] font-bold text-indigo-300">
-                                                    #<?= $l['user_id']; ?>
-                                                </div>
-                                                <span class="text-xs font-medium text-slate-200"><?= htmlspecialchars($l['user_name']); ?></span>
-                                                <span class="text-[10px] text-slate-500 uppercase">(<?= $l['shift_applied']; ?>)</span>
-                                            </div>
-                                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-md <?= $l['status'] === 'Approved' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/15 text-amber-400 border border-amber-500/20'; ?>">
-                                                <?= $l['status']; ?>
-                                            </span>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
+                <div id="employeeLeaveCalendar" class="min-h-[520px]"></div>
             </div>
+            <?php endif; ?>
 
         </div>
-    </div>
+    </main>
 
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var calendarElement = document.getElementById('employeeLeaveCalendar');
+            if (calendarElement) {
+                var calendar = new FullCalendar.Calendar(calendarElement, {
+                    initialView: 'dayGridMonth',
+                    height: 'auto',
+                    headerToolbar: {
+                        left: 'prev,next today',
+                        center: 'title',
+                        right: 'dayGridMonth,timeGridWeek'
+                    },
+                    events: <?= $calendarEventsJson; ?>,
+                    dayMaxEvents: 3,
+                    moreLinkText: function(count) {
+                        return '+' + count + ' more';
+                    }
+                });
+                calendar.render();
+            }
+        });
+
+        function togglePortalSidebar() {
+            var sidebar = document.getElementById('portalSidebar');
+            var toggle = document.getElementById('portalSidebarToggle');
+            var isOpening = sidebar.classList.contains('hidden');
+            sidebar.classList.toggle('hidden', !isOpening);
+            toggle.setAttribute('aria-expanded', String(isOpening));
+        }
+
+        document.querySelectorAll('#portalSidebar .portal-sidebar-link').forEach(function(link) {
+            link.addEventListener('click', function() {
+                if (window.matchMedia('(max-width: 1023px)').matches) {
+                    document.getElementById('portalSidebar').classList.add('hidden');
+                    document.getElementById('portalSidebarToggle').setAttribute('aria-expanded', 'false');
+                }
+            });
+        });
+    </script>
 </body>
 </html>

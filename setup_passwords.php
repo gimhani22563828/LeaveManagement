@@ -4,7 +4,9 @@ include 'auth.php';
 include 'logger.php';
 requireAdmin();
 
+$currentUser = getCurrentUser();
 $message = "";
+$showAllStaff = false;
 
 $isMysql = ($conn->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql');
 
@@ -145,6 +147,97 @@ if (isset($_POST['set_emp_password'])) {
     }
 }
 
+if (isset($_POST['save_employee'])) {
+    $showAllStaff = true;
+    $empId = (int)($_POST['employee_id'] ?? 0);
+    $name = trim($_POST['employee_name'] ?? '');
+    $username = trim($_POST['employee_username'] ?? '');
+    $email = trim($_POST['employee_email'] ?? '');
+    $empNumber = trim($_POST['employee_number'] ?? '');
+    $position = trim($_POST['employee_position'] ?? '');
+    $shift = $_POST['employee_shift'] ?? '';
+    $employeeType = $_POST['employee_type'] ?? '';
+    $labIdInput = trim($_POST['employee_lab_id'] ?? '');
+    $newPassword = $_POST['employee_password'] ?? '';
+
+    $err = '';
+    if ($empId <= 0) {
+        $err = 'Employee kenekwa select karanna.';
+    } elseif (mb_strlen($name) < 2 || mb_strlen($name) > 100) {
+        $err = 'Employee name eka akuru 2-100 athara venna one.';
+    } elseif (!validUsernameFormat($username)) {
+        $err = 'Username eka akuru 3-50 athara (a-z, A-Z, 0-9, . _) venna one.';
+    } elseif (usernameExistsAnywhere($conn, $username, $empId)) {
+        $err = 'මෙම username එක දැනටමත් භාවිතයේ ඇත.';
+    } elseif ($email !== '' && (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 255)) {
+        $err = 'වලංගු email ලිපිනයක් ලබා දෙන්න.';
+    } elseif (!in_array($shift, ['M', 'E', 'BOTH'], true)) {
+        $err = 'වලංගු shift එකක් තෝරන්න (M / E / BOTH).';
+    } elseif (!in_array($employeeType, ['lab', 'rider'], true)) {
+        $err = 'Employee type eka Lab Employee ho Rider venna one.';
+    } elseif (mb_strlen($empNumber) > 50) {
+        $err = 'Employee number eka akuru 50 n ithi venna one.';
+    } elseif (mb_strlen($position) > 100) {
+        $err = 'Position eka akuru 100 n ithi venna one.';
+    } elseif ($newPassword !== '' && (strlen($newPassword) < 4 || strlen($newPassword) > 72)) {
+        $err = 'Password eka akuru 4-72 athara venna one.';
+    } elseif ($employeeType === 'lab' && filter_var($labIdInput, FILTER_VALIDATE_INT) === false) {
+        $err = 'Lab employee kenekuta active Lab ekak select karanna.';
+    }
+
+    $labId = null;
+    if ($err === '' && $employeeType === 'lab') {
+        $labId = (int)$labIdInput;
+        $stmt = $conn->prepare("SELECT COUNT(*) FROM labs WHERE id = :id AND active = 1");
+        $stmt->execute([':id' => $labId]);
+        if ((int)$stmt->fetchColumn() === 0) {
+            $err = 'Lab employee kenekuta active Lab ekak select karanna.';
+        }
+    }
+
+    if ($err === '') {
+        $stmt = $conn->prepare("SELECT id FROM users WHERE id = :id");
+        $stmt->execute([':id' => $empId]);
+        if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
+            $err = 'Employee #' . $empId . ' db eke nathi vela.';
+        }
+    }
+
+    if ($err !== '') {
+        writeLog('EMP_UPDATE_FAILED', 'User#' . $empId . ': ' . $err);
+        $message = errorMessageBox($err);
+    } else {
+        try {
+            $sql = "UPDATE users SET name = :name, username = :username, email = :email,
+                    emp_number = :emp_number, position = :position, shift_type = :shift,
+                    employee_type = :employee_type, lab_id = :lab_id";
+            $params = [
+                ':name' => $name,
+                ':username' => $username,
+                ':email' => $email === '' ? null : $email,
+                ':emp_number' => $empNumber === '' ? null : $empNumber,
+                ':position' => $position === '' ? null : $position,
+                ':shift' => $shift,
+                ':employee_type' => $employeeType,
+                ':lab_id' => $employeeType === 'lab' ? $labId : null,
+                ':id' => $empId,
+            ];
+            if ($newPassword !== '') {
+                $sql .= ", password = :password";
+                $params[':password'] = password_hash($newPassword, PASSWORD_DEFAULT);
+            }
+            $sql .= " WHERE id = :id";
+            $stmt = $conn->prepare($sql);
+            $stmt->execute($params);
+            writeLog('EMP_UPDATED', 'User#' . $empId . ' (' . $username . ') details updated');
+            $message = '<div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs"><i class="fa-solid fa-circle-check"></i> Employee #' . $empId . ' details update kala.</div>';
+        } catch (PDOException $e) {
+            writeLog('EMP_UPDATE_FAILED', 'Database update failed for User#' . $empId);
+            $message = errorMessageBox('Employee details save karanna bari una. Submitted details check karala ayeth try karanna.');
+        }
+    }
+}
+
 // Handle bulk setup
 if (isset($_POST['setup_all'])) {
     $default_pass = password_hash('leave123', PASSWORD_DEFAULT);
@@ -226,19 +319,36 @@ if (isset($_GET['delete_admin'])) {
     exit();
 }
 
-// Handle employee deletion
-if (isset($_GET['delete_emp'])) {
-    $del_id = (int)$_GET['delete_emp'];
-    $stmt = $conn->prepare("DELETE FROM users WHERE id = :id");
-    $stmt->execute([':id' => $del_id]);
-    $stmt = $conn->prepare("DELETE FROM leave_requests WHERE user_id = :id");
-    $stmt->execute([':id' => $del_id]);
-    $message = '<div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs"><i class="fa-solid fa-circle-check"></i> Employee account එක සාර්ථකව මකන ලදී.</div>';
-    header("Location: setup_passwords.php");
-    exit();
+if (isset($_POST['delete_employee'])) {
+    $showAllStaff = true;
+    $delId = (int)($_POST['employee_id'] ?? 0);
+    $stmt = $conn->prepare("SELECT id, name, username FROM users WHERE id = :id");
+    $stmt->execute([':id' => $delId]);
+    $employee = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($delId <= 0 || !$employee) {
+        writeLog('EMP_DELETE_FAILED', 'Invalid employee ID: ' . $delId);
+        $message = errorMessageBox('Employee account eka hambune naha.');
+    } else {
+        try {
+            $conn->beginTransaction();
+            $stmt = $conn->prepare("DELETE FROM leave_requests WHERE user_id = :id");
+            $stmt->execute([':id' => $delId]);
+            $stmt = $conn->prepare("DELETE FROM users WHERE id = :id");
+            $stmt->execute([':id' => $delId]);
+            $conn->commit();
+            writeLog('EMP_DELETED', 'Employee deleted: ' . $employee['username'] . ' (#' . $delId . ')');
+            $message = '<div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs"><i class="fa-solid fa-circle-check"></i> Employee account එක සාර්ථකව මකන ලදී.</div>';
+        } catch (PDOException $e) {
+            if ($conn->inTransaction()) {
+                $conn->rollBack();
+            }
+            writeLog('EMP_DELETE_FAILED', 'Database delete failed for User#' . $delId);
+            $message = errorMessageBox('Employee account eka delete karanna bari una. Ayeth try karanna.');
+        }
+    }
 }
 
-$employees = $conn->query("SELECT * FROM users ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
+$employees = $conn->query("SELECT users.*, labs.name AS lab_name FROM users LEFT JOIN labs ON labs.id = users.lab_id ORDER BY users.id")->fetchAll(PDO::FETCH_ASSOC);
 $labs = $conn->query("SELECT id, name FROM labs WHERE active = 1 ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
 $admins = $conn->query("SELECT * FROM admin_users")->fetchAll(PDO::FETCH_ASSOC);
 ?>
@@ -255,9 +365,82 @@ $admins = $conn->query("SELECT * FROM admin_users")->fetchAll(PDO::FETCH_ASSOC);
         * { font-family: 'Inter', sans-serif; }
         .glass-card { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(24px); }
         .input-glow:focus { box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15); }
+        .sidebar-link { transition: all 0.2s ease; }
+        .sidebar-link:hover { background: rgba(99, 102, 241, 0.08); }
+        .sidebar-link.active { background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.1)); border: 1px solid rgba(99, 102, 241, 0.2); color: #a5b4fc; }
     </style>
 </head>
-<body class="bg-slate-950 min-h-screen p-4 md:p-8 antialiased">
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased flex">
+    <aside id="adminSidebar" class="w-72 max-w-[85vw] bg-slate-950/95 lg:bg-slate-950/80 backdrop-blur-xl border-r border-slate-800/60 flex flex-col justify-between hidden lg:flex fixed inset-y-0 left-0 z-40 overflow-y-auto">
+        <div>
+            <div class="h-16 flex items-center px-6 border-b border-slate-800/60 gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <span class="text-sm font-black text-white">AK</span>
+                </div>
+                <div>
+                    <span class="text-lg font-bold tracking-tight text-white">AKK <span class="text-indigo-400">SOLUTIONS</span></span>
+                    <p class="text-[10px] text-slate-500 font-medium">Admin Dashboard</p>
+                </div>
+            </div>
+            <nav class="p-4 space-y-1.5">
+                <a href="admin.php?page=dashboard" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">
+                    <i class="fa-solid fa-chart-pie w-5 text-center text-indigo-400"></i> Dashboard
+                </a>
+                <a href="admin.php?page=lab-calendar" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">
+                    <i class="fa-solid fa-flask w-5 text-center"></i> Lab Leave Calendar
+                </a>
+                <a href="admin.php?page=rider-calendar" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">
+                    <i class="fa-solid fa-motorcycle w-5 text-center"></i> Rider Leave Calendar
+                </a>
+                <a href="admin.php?page=cancel-leaves" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">
+                    <i class="fa-solid fa-calendar-xmark w-5 text-center text-rose-400"></i> Cancel Leaves
+                </a>
+                <a href="admin.php?page=employees" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">
+                    <i class="fa-solid fa-users-gear w-5 text-center"></i> Manage Employees
+                </a>
+                <a href="setup_passwords.php" class="sidebar-link active flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl" aria-current="page">
+                    <i class="fa-solid fa-user-plus w-5 text-center"></i> Add / Remove Staff
+                </a>
+                <a href="index.php" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">
+                    <i class="fa-solid fa-paper-plane w-5 text-center"></i> Apply Portal
+                </a>
+                <a href="my_leaves.php" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">
+                    <i class="fa-solid fa-list-check w-5 text-center"></i> All Requests
+                </a>
+                <a href="my_logs.php" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">
+                    <i class="fa-solid fa-clock-rotate-left w-5 text-center"></i> My Logs
+                </a>
+            </nav>
+        </div>
+        <div class="p-4 border-t border-slate-800/60">
+            <div class="flex items-center gap-3 px-2">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-slate-700/50 flex items-center justify-center text-indigo-400 text-xs font-bold">
+                    <?= strtoupper(substr($currentUser['name'], 0, 2)); ?>
+                </div>
+                <div class="text-xs flex-1 min-w-0">
+                    <p class="font-semibold text-white truncate"><?= htmlspecialchars($currentUser['name']); ?></p>
+                    <p class="text-slate-500 truncate">@<?= htmlspecialchars($_SESSION['user_username'] ?? 'admin'); ?></p>
+                </div>
+                <a href="logout.php" class="text-slate-500 hover:text-rose-400 transition p-1.5 rounded-lg hover:bg-slate-800/50" title="Logout">
+                    <i class="fa-solid fa-right-from-bracket text-sm"></i>
+                </a>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 lg:ml-72 flex flex-col min-w-0 min-h-screen">
+        <header class="h-16 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/60 sticky top-0 z-30 flex items-center justify-between px-4 md:px-6">
+            <div class="flex items-center gap-3">
+                <button id="sidebarToggle" type="button" aria-controls="adminSidebar" aria-expanded="false" onclick="toggleAdminSidebar()" class="lg:hidden text-slate-400 hover:text-white transition p-2 rounded-lg hover:bg-slate-800/50">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+                <h1 class="text-sm font-bold text-white">Leave Management / Add / Remove Staff</h1>
+            </div>
+            <a href="admin.php?page=dashboard" class="text-xs font-semibold text-slate-400 hover:text-white transition">
+                <i class="fa-solid fa-arrow-left"></i> Dashboard
+            </a>
+        </header>
+        <div class="flex-1 p-4 md:p-8">
     <div class="max-w-3xl mx-auto space-y-8">
         <!-- Header -->
         <div class="flex items-center justify-between">
@@ -270,8 +453,8 @@ $admins = $conn->query("SELECT * FROM admin_users")->fetchAll(PDO::FETCH_ASSOC);
                     <p class="text-xs text-slate-400">Initialize login credentials</p>
                 </div>
             </div>
-            <a href="login.php" class="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition">
-                <i class="fa-solid fa-arrow-left"></i> Back to Login
+            <a href="admin.php?page=dashboard" class="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition">
+                <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
             </a>
         </div>
 
@@ -423,29 +606,165 @@ $admins = $conn->query("SELECT * FROM admin_users")->fetchAll(PDO::FETCH_ASSOC);
                     <!-- Employees -->
                     <div>
                         <h3 class="text-[10px] font-bold text-purple-400 uppercase tracking-wider mb-2">Employee Accounts</h3>
-                        <div class="space-y-1 max-h-48 overflow-y-auto">
-                            <?php foreach($employees as $e): ?>
-                                <div class="flex items-center gap-2 p-2 rounded-lg bg-slate-800/40">
-                                    <div class="w-7 h-7 rounded-full <?= !empty($e['password']) ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-slate-400'; ?> flex items-center justify-center text-[10px] font-bold">
-                                        <?= !empty($e['password']) ? '<i class="fa-solid fa-check"></i>' : '<i class="fa-solid fa-xmark"></i>'; ?>
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <p class="text-xs font-medium text-white">#<?= $e['id']; ?> <?= htmlspecialchars($e['name']); ?></p>
-                                        <p class="text-[10px] text-slate-400"><?= htmlspecialchars($e['username'] ?? 'N/A'); ?> &middot; <?= htmlspecialchars(ucfirst($e['employee_type'] ?? 'lab')); ?> &middot; <?= $e['shift_type']; ?> Shift <?= !empty($e['password']) ? '&middot; <span class="text-emerald-400">Ready</span>' : '&middot; <span class="text-amber-400">No Password</span>'; ?></p>
-                                    </div>
-                                    <a href="?delete_emp=<?= $e['id']; ?>" onclick="return confirm('මෙම Employee account එක මැකීමට තහවුරු කරන්න?')"
-                                        class="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 p-1.5 rounded-lg transition text-[10px]" title="Delete">
-                                        <i class="fa-solid fa-trash-can"></i>
-                                    </a>
+                                    <p class="text-xs text-slate-400 mb-3"><?= count($employees); ?> staff members</p>
+                                    <button id="viewAllStaffButton" type="button" aria-controls="allStaffList" aria-expanded="<?= $showAllStaff ? 'true' : 'false'; ?>" onclick="toggleAllStaff()"
+                                        class="bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition">
+                                        <i class="fa-solid fa-users"></i> <span id="viewAllStaffLabel"><?= $showAllStaff ? 'Hide All Staff' : 'View All Staff'; ?></span>
+                                    </button>
                                 </div>
-                            <?php endforeach; ?>
+                            </div>
+
+                            <div id="allStaffList" class="<?= $showAllStaff ? '' : 'hidden'; ?> mt-6 space-y-4">
+                                <?php if (count($employees) > 0): ?>
+                                    <?php foreach ($employees as $e): ?>
+                                        <?php $employeeId = (int)$e['id']; ?>
+                                        <article class="rounded-2xl border border-slate-700/60 bg-slate-900/50 p-4 md:p-5">
+                                            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                                                <div class="min-w-0 flex-1">
+                                                    <h3 class="font-bold text-white">#<?= $employeeId; ?> <?= htmlspecialchars($e['name']); ?></h3>
+                                                    <dl class="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-2 text-xs">
+                                                        <div><dt class="text-slate-500">Username</dt><dd class="text-slate-200">@<?= htmlspecialchars($e['username'] ?? 'N/A'); ?></dd></div>
+                                                        <div><dt class="text-slate-500">Email</dt><dd class="text-slate-200"><?= htmlspecialchars($e['email'] ?? '') ?: '-'; ?></dd></div>
+                                                        <div><dt class="text-slate-500">Employee Number</dt><dd class="text-slate-200"><?= htmlspecialchars($e['emp_number'] ?? '') ?: '-'; ?></dd></div>
+                                                        <div><dt class="text-slate-500">Position</dt><dd class="text-slate-200"><?= htmlspecialchars($e['position'] ?? '') ?: '-'; ?></dd></div>
+                                                        <div><dt class="text-slate-500">Employee Type</dt><dd class="text-slate-200"><?= htmlspecialchars(ucfirst($e['employee_type'] ?? 'lab')); ?></dd></div>
+                                                        <div><dt class="text-slate-500">Shift</dt><dd class="text-slate-200"><?= htmlspecialchars($e['shift_type'] ?? ''); ?></dd></div>
+                                                        <div><dt class="text-slate-500">Lab</dt><dd class="text-slate-200"><?= htmlspecialchars($e['lab_name'] ?? '') ?: '-'; ?></dd></div>
+                                                        <div><dt class="text-slate-500">Password</dt><dd class="<?= !empty($e['password']) ? 'text-emerald-400' : 'text-amber-400'; ?>"><?= !empty($e['password']) ? 'Set' : 'Not set'; ?></dd></div>
+                                                    </dl>
+                                                </div>
+                                                <div class="flex items-center gap-2 sm:flex-shrink-0">
+                                                    <button type="button" aria-controls="editEmployeeForm<?= $employeeId; ?>" aria-expanded="false" onclick="toggleEmployeeEditor(<?= $employeeId; ?>)"
+                                                        class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-3 py-2 rounded-lg transition">
+                                                        <i class="fa-solid fa-pen"></i> Edit
+                                                    </button>
+                                                    <form method="POST" onsubmit="return confirm('Delete this staff account and its leave requests?');">
+                                                        <input type="hidden" name="employee_id" value="<?= $employeeId; ?>">
+                                                        <button type="submit" name="delete_employee" class="bg-rose-600/80 hover:bg-rose-600 text-white text-xs font-semibold px-3 py-2 rounded-lg transition">
+                                                            <i class="fa-solid fa-trash-can"></i> Delete
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
+
+                                            <form id="editEmployeeForm<?= $employeeId; ?>" method="POST" class="hidden mt-5 border-t border-slate-700/60 pt-5">
+                                                <input type="hidden" name="employee_id" value="<?= $employeeId; ?>">
+                                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                    <label class="text-[10px] font-semibold text-slate-400 uppercase">Name
+                                                        <input type="text" name="employee_name" required minlength="2" maxlength="100" value="<?= htmlspecialchars($e['name'], ENT_QUOTES, 'UTF-8'); ?>"
+                                                            class="mt-1 w-full bg-slate-800/60 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
+                                                    </label>
+                                                    <label class="text-[10px] font-semibold text-slate-400 uppercase">Username
+                                                        <input type="text" name="employee_username" required minlength="3" maxlength="50" value="<?= htmlspecialchars($e['username'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                                                            class="mt-1 w-full bg-slate-800/60 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
+                                                    </label>
+                                                    <label class="text-[10px] font-semibold text-slate-400 uppercase">Email
+                                                        <input type="email" name="employee_email" maxlength="255" value="<?= htmlspecialchars($e['email'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                                                            class="mt-1 w-full bg-slate-800/60 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
+                                                    </label>
+                                                    <label class="text-[10px] font-semibold text-slate-400 uppercase">Employee Number
+                                                        <input type="text" name="employee_number" maxlength="50" value="<?= htmlspecialchars($e['emp_number'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                                                            class="mt-1 w-full bg-slate-800/60 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
+                                                    </label>
+                                                    <label class="text-[10px] font-semibold text-slate-400 uppercase">Position
+                                                        <input type="text" name="employee_position" maxlength="100" value="<?= htmlspecialchars($e['position'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                                                            class="mt-1 w-full bg-slate-800/60 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
+                                                    </label>
+                                                    <label class="text-[10px] font-semibold text-slate-400 uppercase">Shift
+                                                        <select name="employee_shift" required class="mt-1 w-full bg-slate-800/60 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
+                                                            <option value="M" <?= $e['shift_type'] === 'M' ? 'selected' : ''; ?>>Morning</option>
+                                                            <option value="E" <?= $e['shift_type'] === 'E' ? 'selected' : ''; ?>>Evening</option>
+                                                            <option value="BOTH" <?= $e['shift_type'] === 'BOTH' ? 'selected' : ''; ?>>Both shifts</option>
+                                                        </select>
+                                                    </label>
+                                                    <label class="text-[10px] font-semibold text-slate-400 uppercase">Employee Type
+                                                        <select name="employee_type" id="employeeType<?= $employeeId; ?>" required onchange="toggleEmployeeLab(<?= $employeeId; ?>)"
+                                                            class="mt-1 w-full bg-slate-800/60 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
+                                                            <option value="lab" <?= ($e['employee_type'] ?? 'lab') === 'lab' ? 'selected' : ''; ?>>Lab employee</option>
+                                                            <option value="rider" <?= ($e['employee_type'] ?? 'lab') === 'rider' ? 'selected' : ''; ?>>Rider</option>
+                                                        </select>
+                                                    </label>
+                                                    <label id="employeeLabWrap<?= $employeeId; ?>" class="text-[10px] font-semibold text-slate-400 uppercase">
+                                                        Lab
+                                                        <select name="employee_lab_id" id="employeeLab<?= $employeeId; ?>"
+                                                            class="mt-1 w-full bg-slate-800/60 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
+                                                            <option value="">-- Select Lab --</option>
+                                                            <?php foreach ($labs as $lab): ?>
+                                                                <option value="<?= (int)$lab['id']; ?>" <?= (int)($e['lab_id'] ?? 0) === (int)$lab['id'] ? 'selected' : ''; ?>><?= htmlspecialchars($lab['name']); ?></option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                    </label>
+                                                    <label class="text-[10px] font-semibold text-slate-400 uppercase sm:col-span-2">New Password <span class="normal-case text-slate-500">(optional; leave blank to keep current)</span>
+                                                        <input type="password" name="employee_password" minlength="4" maxlength="72" autocomplete="new-password"
+                                                            class="mt-1 w-full bg-slate-800/60 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">
+                                                    </label>
+                                                </div>
+                                                <div class="mt-4 flex justify-end gap-2">
+                                                    <button type="button" onclick="toggleEmployeeEditor(<?= $employeeId; ?>)" class="text-slate-300 hover:text-white text-xs font-semibold px-4 py-2 rounded-lg border border-slate-700">Cancel</button>
+                                                    <button type="submit" name="save_employee" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">
+                                                        <i class="fa-solid fa-floppy-disk"></i> Save Details
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </article>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <p class="text-sm text-slate-400">No staff accounts found.</p>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
+    </main>
     <script>
+    function toggleAdminSidebar() {
+        var sidebar = document.getElementById('adminSidebar');
+        var toggle = document.getElementById('sidebarToggle');
+        var isOpening = sidebar.classList.contains('hidden');
+        sidebar.classList.toggle('hidden', !isOpening);
+        toggle.setAttribute('aria-expanded', String(isOpening));
+    }
+
+    document.querySelectorAll('#adminSidebar .sidebar-link').forEach(function(link) {
+        link.addEventListener('click', function() {
+            if (window.matchMedia('(max-width: 1023px)').matches) {
+                document.getElementById('adminSidebar').classList.add('hidden');
+                document.getElementById('sidebarToggle').setAttribute('aria-expanded', 'false');
+            }
+        });
+    });
+
+    function toggleAllStaff() {
+        var list = document.getElementById('allStaffList');
+        var button = document.getElementById('viewAllStaffButton');
+        var label = document.getElementById('viewAllStaffLabel');
+        var isOpening = list.classList.contains('hidden');
+        list.classList.toggle('hidden', !isOpening);
+        button.setAttribute('aria-expanded', String(isOpening));
+        label.textContent = isOpening ? 'Hide All Staff' : 'View All Staff';
+    }
+
+    function toggleEmployeeEditor(employeeId) {
+        var form = document.getElementById('editEmployeeForm' + employeeId);
+        var button = document.querySelector('[aria-controls="editEmployeeForm' + employeeId + '"]');
+        var isOpening = form.classList.contains('hidden');
+        form.classList.toggle('hidden', !isOpening);
+        button.setAttribute('aria-expanded', String(isOpening));
+    }
+
+    function toggleEmployeeLab(employeeId) {
+        var isLabEmployee = document.getElementById('employeeType' + employeeId).value === 'lab';
+        var labWrap = document.getElementById('employeeLabWrap' + employeeId);
+        var labSelect = document.getElementById('employeeLab' + employeeId);
+        labWrap.classList.toggle('hidden', !isLabEmployee);
+        labSelect.required = isLabEmployee;
+    }
+
+    document.querySelectorAll('#allStaffList select[id^="employeeType"]').forEach(function(select) {
+        toggleEmployeeLab(select.id.replace('employeeType', ''));
+    });
+
     function toggleSetupEmployeeType() {
         const isLabEmployee = document.getElementById('setupEmployeeType').value === 'lab';
         document.getElementById('setupLabWrap').style.display = isLabEmployee ? '' : 'none';

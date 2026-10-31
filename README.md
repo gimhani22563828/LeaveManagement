@@ -39,6 +39,8 @@ Oya account/domain one hadala thiyenne nam:
 | `my_leaves.php` | employee | own requests / cancel |
 | `my_logs.php` | both | activity login |
 
+The admin dashboard opens Dashboard, Lab Leave Calendar, Rider Leave Calendar, Cancel Leaves, and Manage Employees as separate views from its sidebar.
+
 > `index.php` auto-approves a leave when all business rules pass. If rules block it and it is marked **Emergency**, it goes to **Pending** for admin review. Otherwise it is rejected.
 
 ---
