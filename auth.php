@@ -17,7 +17,7 @@ function requireLogin() {
 function requireAdmin() {
     requireLogin();
     if ($_SESSION['user_role'] !== 'admin') {
-        header("Location: index.php");
+        header("Location: dashboard.php");
         exit();
     }
 }

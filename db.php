@@ -13,10 +13,10 @@ if (session_status() === PHP_SESSION_NONE) {
    - Local PC testing (localhost) -> SQLite auto mode (mekedi edit karanna epa)
    ===================================================================== */
 
-// $DB_HOST = 'sql105.infinityfree.com';      // MySQL Host Name
-// $DB_NAME = 'if0_43000401_leavesystem';     // Database Name
-// $DB_USER = 'if0_43000401';                 // Database Username
-// $DB_PASS = 'keshara2005';              // Database Password
+$DB_HOST = 'sql312.infinityfree.com';      // MySQL Host Name
+$DB_NAME = 'if0_43084281_user_leavesystem';     // Database Name
+$DB_USER = 'if0_43084281';                 // Database Username
+$DB_PASS = 'nPzfWfbHwAMI';              // Database Password
 
 /* Register page (Create Account) eken ADMIN account hadanna one nam
    me key eka danna one. Me key eka JAHA AYARU KARANNA EPAA.

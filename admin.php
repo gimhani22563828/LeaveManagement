@@ -578,7 +578,7 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
                 <a href="setup_passwords.php" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">
                     <i class="fa-solid fa-user-plus w-5 text-center"></i> Add / Remove Staff
                 </a>
-                <a href="index.php" target="_blank" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">
+                <a href="dashboard.php" target="_blank" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">
                     <i class="fa-solid fa-paper-plane w-5 text-center"></i> Apply Portal
                 </a>
                 <a href="my_leaves.php" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">
@@ -617,7 +617,7 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
                 </button>
                 <h1 class="text-sm font-bold text-white">Leave Management / <?= htmlspecialchars($pageTitles[$adminPage]); ?></h1>
             </div>
-            <a href="index.php" target="_blank" class="text-xs font-bold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-4 py-2.5 rounded-xl transition shadow-md shadow-indigo-600/20 flex items-center gap-2">
+            <a href="dashboard.php" target="_blank" class="text-xs font-bold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-4 py-2.5 rounded-xl transition shadow-md shadow-indigo-600/20 flex items-center gap-2">
                 <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Apply Portal
             </a>
         </header>

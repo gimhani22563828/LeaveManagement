@@ -34,14 +34,15 @@ Oya account/domain one hadala thiyenne nam:
 | `install.php` | first run | create Owner admin (once) |
 | `login.php` | everyone | sign in |
 | `create_account.php` | staff | self-register (admin key needed for admin role) |
-| `index.php` | employee | apply for leave |
+| `index.php` | public | landing page |
+| `dashboard.php` | employee | apply for leave / employee portal |
 | `admin.php` | admin | approve/reject, calendar, manage employees, rules |
 | `my_leaves.php` | employee | own requests / cancel |
 | `my_logs.php` | both | activity login |
 
 The admin dashboard opens Dashboard, Lab Leave Calendar, Rider Leave Calendar, Cancel Leaves, and Manage Employees as separate views from its sidebar.
 
-> `index.php` auto-approves a leave when all business rules pass. If rules block it and it is marked **Emergency**, it goes to **Pending** for admin review. Otherwise it is rejected.
+> `dashboard.php` auto-approves a leave when all business rules pass. If rules block it and it is marked **Emergency**, it goes to **Pending** for admin review. Otherwise it is rejected.
 
 ---
 

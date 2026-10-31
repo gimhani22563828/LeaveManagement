@@ -4,7 +4,7 @@ include 'db.php';
 include 'logger.php';
 
 if (isset($_SESSION['user_id'])) {
-    header("Location: " . ($_SESSION['user_role'] === 'admin' ? 'admin.php' : 'index.php'));
+    header("Location: " . ($_SESSION['user_role'] === 'admin' ? 'admin.php' : 'dashboard.php'));
     exit();
 }
 
@@ -386,7 +386,7 @@ if (isset($_POST['login'])) {
                 $_SESSION['user_username'] = $emp['username'];
                 $_SESSION['user_shift'] = $emp['shift_type'];
                 writeLog('LOGIN_SUCCESS', 'Employee logged in');
-                header("Location: index.php");
+                header("Location: dashboard.php");
                 exit();
             } else {
                 writeLog('LOGIN_FAILED', 'Wrong password for employee: ' . $username);
@@ -490,7 +490,7 @@ if ($regUnlocked) {
         <div class="absolute inset-0" style="background-image: radial-gradient(rgba(99, 102, 241, 0.06) 1px, transparent 1px); background-size: 40px 40px;"></div>
     </div>
 
-    <a href="home.php" class="fixed top-4 right-4 z-20 inline-flex items-center gap-2 rounded-xl border border-slate-700/70 bg-slate-900/80 px-4 py-2.5 text-xs font-semibold text-slate-200 shadow-lg backdrop-blur hover:border-indigo-500/50 hover:text-white transition">
+    <a href="index.php" class="fixed top-4 right-4 z-20 inline-flex items-center gap-2 rounded-xl border border-slate-700/70 bg-slate-900/80 px-4 py-2.5 text-xs font-semibold text-slate-200 shadow-lg backdrop-blur hover:border-indigo-500/50 hover:text-white transition">
         <i class="fa-solid fa-house text-indigo-400"></i> Home
     </a>
 

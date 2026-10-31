@@ -401,7 +401,7 @@ $admins = $conn->query("SELECT * FROM admin_users")->fetchAll(PDO::FETCH_ASSOC);
                 <a href="setup_passwords.php" class="sidebar-link active flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl" aria-current="page">
                     <i class="fa-solid fa-user-plus w-5 text-center"></i> Add / Remove Staff
                 </a>
-                <a href="index.php" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">
+                <a href="dashboard.php" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">
                     <i class="fa-solid fa-paper-plane w-5 text-center"></i> Apply Portal
                 </a>
                 <a href="my_leaves.php" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">

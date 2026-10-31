@@ -77,7 +77,7 @@ $actionIcons = [
                     <p class="text-sm text-slate-400 mt-1">ඔබගේ සියලුම ක්‍රියාකාරකම් මෙහි බලන්න</p>
                 </div>
                 <div class="flex items-center gap-3">
-                    <a href="index.php" class="text-xs font-bold bg-slate-800/50 border border-slate-700/50 text-slate-300 hover:text-white px-4 py-2.5 rounded-xl transition flex items-center gap-2">
+                    <a href="dashboard.php" class="text-xs font-bold bg-slate-800/50 border border-slate-700/50 text-slate-300 hover:text-white px-4 py-2.5 rounded-xl transition flex items-center gap-2">
                         <i class="fa-solid fa-arrow-left"></i> Back
                     </a>
                     <span class="text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 px-3 py-1.5 rounded-full">

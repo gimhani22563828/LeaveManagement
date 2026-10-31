@@ -96,7 +96,7 @@ $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <a href="my_logs.php" class="text-xs font-bold bg-slate-800/50 border border-slate-700/50 text-emerald-400 hover:text-emerald-300 px-4 py-2.5 rounded-xl transition flex items-center gap-2">
                     <i class="fa-solid fa-clock-rotate-left"></i> My Logs
                 </a>
-                <a href="index.php" class="text-xs font-bold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-5 py-2.5 rounded-xl transition shadow-md shadow-indigo-600/20 flex items-center gap-2">
+                <a href="dashboard.php" class="text-xs font-bold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-5 py-2.5 rounded-xl transition shadow-md shadow-indigo-600/20 flex items-center gap-2">
                     <i class="fa-solid fa-plus"></i> Apply New Leave
                 </a>
             </div>
@@ -171,7 +171,7 @@ $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         </div>
                         <p class="text-slate-400 text-sm font-semibold mb-1">No leave requests yet</p>
                         <p class="text-slate-500 text-xs mb-5">ඔබගේ ප්‍රථම නිවාඩු ඉල්ලීම සාදන්න</p>
-                        <a href="index.php" class="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition shadow-md">
+                        <a href="dashboard.php" class="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition shadow-md">
                             <i class="fa-solid fa-plus"></i> Apply Now
                 </a>
                 </div>
