@@ -2,12 +2,19 @@
 include 'db.php';
 include 'auth.php';
 include 'logger.php';
-requireEmployee();
+if (($_SESSION['user_role'] ?? '') === 'admin') {
+    requireAdmin();
+} else {
+    requireEmployee();
+}
 
 $currentUser = getCurrentUser();
+$backUrl = $currentUser['role'] === 'admin' ? 'admin.php' : 'index.php';
 
-/* Logs dan DATABASE EKEN (system_logs table) enawa */
-$logRows = getLogsForUser($conn, $currentUser['id']);
+/* Show only this account's logs; filter role too because admin and employee IDs may overlap. */
+$logStmt = $conn->prepare("SELECT * FROM system_logs WHERE user_id = :uid AND user_role = :role ORDER BY id DESC LIMIT 500");
+$logStmt->execute([':uid' => (string)$currentUser['id'], ':role' => $currentUser['role']]);
+$logRows = $logStmt->fetchAll(PDO::FETCH_ASSOC);
 
 $actionIcons = [
     'LOGIN_SUCCESS'    => ['icon' => 'fa-right-to-bracket',  'color' => 'emerald'],
@@ -26,7 +33,7 @@ $actionIcons = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AKK SOLUTIONS | My Activity Logs</title>
+    <title>Super Nova | My Activity Logs</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -44,12 +51,9 @@ $actionIcons = [
     </div>
 
     <nav class="fixed top-0 inset-x-0 z-50 bg-slate-950/70 backdrop-blur-xl border-b border-slate-800/60">
-        <div class="max-w-7xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
+        <div class="mx-auto h-16 flex items-center justify-between" style="width: min(1180px, calc(100% - 32px));">
             <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                    <span class="text-sm font-black text-white">AK</span>
-                </div>
-                <span class="text-lg font-bold text-white tracking-tight">AKK <span class="text-indigo-400">SOLUTIONS</span></span>
+                <img src="assets/images/logo-cropped.png" alt="Micro Medilab Laboratory Services" style="display:block;height:40px;width:auto;max-width:220px;object-fit:contain;">
             </div>
             <div class="flex items-center gap-3">
                 <div class="hidden md:flex items-center gap-2 bg-slate-800/50 border border-slate-700/50 rounded-xl px-3 py-2">
@@ -58,7 +62,7 @@ $actionIcons = [
                     </div>
                     <div class="text-xs">
                         <p class="font-semibold text-white"><?= htmlspecialchars($currentUser['name']); ?></p>
-                        <p class="text-[10px] text-slate-400">Employee Portal</p>
+                        <p class="text-[10px] text-slate-400"><?= $currentUser['role'] === 'admin' ? 'Admin Dashboard' : 'Employee Portal'; ?></p>
                     </div>
                 </div>
                 <a href="logout.php" class="text-xs font-semibold text-slate-400 hover:text-rose-400 transition bg-slate-800/50 border border-slate-700/50 px-3 py-2 rounded-xl flex items-center gap-1.5">
@@ -68,8 +72,8 @@ $actionIcons = [
         </div>
     </nav>
 
-    <div class="relative z-10 pt-24 pb-12 px-4 md:px-8">
-        <div class="max-w-5xl mx-auto space-y-6">
+    <div class="relative z-10 pt-24 pb-12">
+        <div class="mx-auto space-y-6" style="width: min(1180px, calc(100% - 32px));">
 
             <div class="flex items-center justify-between">
                 <div>
@@ -77,7 +81,7 @@ $actionIcons = [
                     <p class="text-sm text-slate-400 mt-1">ඔබගේ සියලුම ක්‍රියාකාරකම් මෙහි බලන්න</p>
                 </div>
                 <div class="flex items-center gap-3">
-                    <a href="index.php" class="text-xs font-bold bg-slate-800/50 border border-slate-700/50 text-slate-300 hover:text-white px-4 py-2.5 rounded-xl transition flex items-center gap-2">
+                    <a href="<?= htmlspecialchars($backUrl); ?>" class="text-xs font-bold bg-slate-800/50 border border-slate-700/50 text-slate-300 hover:text-white px-4 py-2.5 rounded-xl transition flex items-center gap-2">
                         <i class="fa-solid fa-arrow-left"></i> Back
                     </a>
                     <span class="text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 px-3 py-1.5 rounded-full">

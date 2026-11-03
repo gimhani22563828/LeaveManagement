@@ -35,7 +35,7 @@ $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AKK SOLUTIONS | My Leave Requests</title>
+    <title>Super Nova | My Leave Requests</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -45,6 +45,7 @@ $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .sidebar-link { transition: all 0.2s ease; }
         .sidebar-link:hover { background: rgba(99, 102, 241, 0.08); }
         .sidebar-link.active { background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.1)); border: 1px solid rgba(99, 102, 241, 0.2); color: #a5b4fc; }
+        .requests-table th, .requests-table td { vertical-align: middle; }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen antialiased">
@@ -58,12 +59,9 @@ $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <!-- Top Navbar -->
     <nav class="fixed top-0 inset-x-0 z-50 bg-slate-950/70 backdrop-blur-xl border-b border-slate-800/60">
-        <div class="max-w-7xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
+        <div class="mx-auto h-16 flex items-center justify-between" style="width: min(1180px, calc(100% - 32px));">
             <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                    <span class="text-sm font-black text-white">AK</span>
-                </div>
-                <span class="text-lg font-bold text-white tracking-tight">AKK <span class="text-indigo-400">SOLUTIONS</span></span>
+                <img src="assets/images/logo-cropped.png" alt="Micro Medilab Laboratory Services" style="display:block;height:40px;width:auto;max-width:220px;object-fit:contain;">
             </div>
             <div class="flex items-center gap-3">
                 <div class="hidden md:flex items-center gap-2 bg-slate-800/50 border border-slate-700/50 rounded-xl px-3 py-2">
@@ -83,22 +81,26 @@ $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </nav>
 
     <!-- Main Content -->
-    <div class="relative z-10 pt-24 pb-12 px-4 md:px-8">
-        <div class="max-w-5xl mx-auto space-y-6">
+    <div class="relative z-10 pt-24 pb-12">
+        <div class="mx-auto space-y-6" style="width: min(1180px, calc(100% - 32px));">
             
             <!-- Header -->
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 class="text-2xl font-extrabold text-white tracking-tight">My Leave Requests</h1>
                     <p class="text-sm text-slate-400 mt-1">ඔබගේ සියලුම නිවාඩු ඉල්ලීම් මෙහි බලන්න</p>
                 </div>
-                <div class="flex items-center gap-3">
+                <div class="flex flex-wrap items-center gap-3 sm:justify-end">
+                <a href="index.php" class="text-xs font-bold bg-slate-800/50 border border-slate-700/50 text-slate-300 hover:text-white px-4 py-2.5 rounded-xl transition flex items-center gap-2">
+                    <i class="fa-solid fa-arrow-left"></i> Back
+                </a>
                 <a href="my_logs.php" class="text-xs font-bold bg-slate-800/50 border border-slate-700/50 text-emerald-400 hover:text-emerald-300 px-4 py-2.5 rounded-xl transition flex items-center gap-2">
                     <i class="fa-solid fa-clock-rotate-left"></i> My Logs
                 </a>
                 <a href="index.php" class="text-xs font-bold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-5 py-2.5 rounded-xl transition shadow-md shadow-indigo-600/20 flex items-center gap-2">
                     <i class="fa-solid fa-plus"></i> Apply New Leave
                 </a>
+            </div>
             </div>
 
             <?php if (!empty($msg)): ?>
@@ -117,7 +119,7 @@ $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <div class="card-glass border border-slate-700/40 rounded-2xl overflow-hidden shadow-xl">
                 <?php if (count($requests) > 0): ?>
                     <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs">
+                        <table class="requests-table w-full min-w-[860px] text-left text-xs">
                             <thead>
                                 <tr class="border-b border-slate-700/40 bg-slate-900/30">
                                     <th class="py-4 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date</th>
