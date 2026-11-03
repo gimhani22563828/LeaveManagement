@@ -14,6 +14,7 @@ $pageTitles = [
     'employees' => 'Manage Employees',
     'pending-leaves' => 'Pending Leaves',
     'today-leaves' => 'On Leave Today',
+    'all-requests' => 'All Requests',
 ];
 $adminPage = $_GET['page'] ?? 'dashboard';
 if (!is_string($adminPage) || !isset($pageTitles[$adminPage])) {
@@ -426,6 +427,13 @@ $stmt = $conn->query("SELECT lr.*, u.name, u.emp_number, u.username, u.position,
                       ORDER BY lr.created_at DESC");
 $pending_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// --- All Leave Requests ---
+$stmt = $conn->query("SELECT lr.*, u.name, u.emp_number, u.username, u.position, u.employee_type
+                      FROM leave_requests lr
+                      JOIN users u ON lr.user_id = u.id
+                      ORDER BY lr.created_at DESC, lr.id DESC");
+$all_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 // --- Approved Leaves Today ---
 $stmt = $conn->prepare("SELECT lr.*, u.name, u.emp_number, u.username, u.position, u.employee_type, l.name AS lab_name
                         FROM leave_requests lr
@@ -515,7 +523,7 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AKK SOLUTIONS | Admin Dashboard</title>
+    <title>Super Nova | Admin Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -527,7 +535,41 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
         .sidebar-link:hover { background: rgba(99, 102, 241, 0.08); }
         .sidebar-link.active { background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.1)); border: 1px solid rgba(99, 102, 241, 0.2); color: #a5b4fc; }
         .fc { border-color: rgba(51, 65, 85, 0.5) !important; }
+        .fc .fc-header-toolbar { margin-bottom: 1rem !important; padding: 0 4px; }
         .fc .fc-toolbar-title { font-size: 1rem !important; font-weight: 700; color: white; }
+        .fc .fc-toolbar-chunk:first-child {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            align-items: center;
+            gap: 10px;
+            width: max-content;
+            max-width: 100%;
+            white-space: nowrap;
+        }
+        .fc .fc-toolbar-chunk:first-child > *,
+        .fc .fc-toolbar-chunk:first-child .fc-button-group {
+            display: inline-flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            align-items: center;
+            flex: 0 0 auto;
+        }
+        .fc .fc-toolbar-chunk:first-child .fc-toolbar-title {
+            display: inline-block !important;
+            flex: 0 0 auto;
+            white-space: nowrap;
+            margin: 0 4px !important;
+        }
+        .fc .fc-toolbar-title { white-space: nowrap; margin: 0 4px !important; }
+        .fc .fc-dayGridMonth-button, .fc .fc-timeGridWeek-button { border-radius: 10px !important; }
+        .fc .fc-timeGridWeek-button { margin-left: 10px !important; }
+        @media (max-width: 640px) {
+            .fc .fc-toolbar { flex-wrap: wrap; gap: 0.75rem; }
+            .fc .fc-toolbar-chunk:first-child { gap: 6px; min-width: max-content; }
+            .fc .fc-toolbar-title { font-size: 0.78rem !important; }
+            .fc .fc-prev-button, .fc .fc-next-button { padding: 5px 8px !important; }
+        }
         .fc .fc-button-primary { background-color: #4f46e5 !important; border: none !important; border-radius: 10px !important; padding: 6px 14px !important; font-size: 0.75rem !important; }
         .fc .fc-button-primary:hover { background-color: #4338ca !important; }
         .fc .fc-button-primary:disabled { background-color: rgba(79, 70, 229, 0.4) !important; }
@@ -549,12 +591,9 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
     <!-- Sidebar -->
     <aside id="adminSidebar" class="w-72 max-w-[85vw] bg-slate-950/95 lg:bg-slate-950/80 backdrop-blur-xl border-r border-slate-800/60 flex flex-col justify-between hidden lg:flex fixed inset-y-0 left-0 z-40 overflow-y-auto">
         <div>
-            <div class="h-16 flex items-center px-6 border-b border-slate-800/60 gap-3">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                    <span class="text-sm font-black text-white">AK</span>
-                </div>
-                <div>
-                    <span class="text-lg font-bold tracking-tight text-white">AKK <span class="text-indigo-400">SOLUTIONS</span></span>
+            <div class="h-16 flex items-center px-6 border-b border-slate-800/60">
+                <div class="min-w-0">
+                    <img src="assets/images/logo-cropped.png" alt="Micro Medilab Laboratory Services" style="display:block;height:40px;width:auto;max-width:220px;object-fit:contain;">
                     <p class="text-[10px] text-slate-500 font-medium">Admin Dashboard</p>
                 </div>
             </div>
@@ -581,7 +620,7 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
                 <a href="index.php" target="_blank" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">
                     <i class="fa-solid fa-paper-plane w-5 text-center"></i> Apply Portal
                 </a>
-                <a href="my_leaves.php" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">
+                <a href="admin.php?page=all-requests" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm rounded-xl <?= $adminPage === 'all-requests' ? 'active font-semibold' : 'font-medium text-slate-400'; ?>" <?= $adminPage === 'all-requests' ? 'aria-current="page"' : ''; ?>>
                     <i class="fa-solid fa-list-check w-5 text-center"></i> All Requests
                 </a>
                 <a href="my_logs.php" class="sidebar-link flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl text-slate-400">
@@ -741,7 +780,7 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
                                                         <i class="fa-solid fa-check"></i> Approve
                                                     </a>
                                                     <a href="admin.php?page=pending-leaves&action=cancel&id=<?= (int)$row['id']; ?>" onclick="return confirm('Mema leave request eka cancel karanna surety da?');" class="text-[11px] font-bold bg-rose-600 hover:bg-rose-500 text-white px-3 py-1.5 rounded-lg transition">
-                                                        <i class="fa-solid fa-ban"></i> Cancel
+                                                        <i class="fa-solid fa-rectangle-xmark"></i> Cancel
                                                     </a>
                                                 </div>
                                             </td>
@@ -759,6 +798,66 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
             </section>
             <?php endif; ?>
 
+            <!-- All Requests -->
+            <?php if ($adminPage === 'all-requests'): ?>
+            <section class="card-glass border border-slate-700/40 rounded-2xl overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-700/40 flex items-center justify-between gap-3">
+                    <div>
+                        <h2 class="font-bold text-white text-sm">All Leave Requests</h2>
+                        <p class="text-[10px] text-slate-500 mt-1"><?= count($all_requests); ?> total request<?= count($all_requests) === 1 ? '' : 's'; ?></p>
+                    </div>
+                </div>
+                <?php if (count($all_requests) > 0): ?>
+                    <div class="overflow-x-auto">
+                        <table class="w-full min-w-[900px] text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="border-b border-slate-700/40 bg-slate-900/30">
+                                    <th class="py-3.5 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Employee</th>
+                                    <th class="py-3.5 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Leave Date</th>
+                                    <th class="py-3.5 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Shift</th>
+                                    <th class="py-3.5 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Reason</th>
+                                    <th class="py-3.5 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
+                                    <th class="py-3.5 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Emergency</th>
+                                    <th class="py-3.5 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-700/30">
+                                <?php foreach ($all_requests as $row): ?>
+                                    <tr class="hover:bg-slate-800/30 transition-colors">
+                                        <td class="py-4 px-6">
+                                            <div class="font-semibold text-white text-xs"><?= htmlspecialchars($row['name']); ?></div>
+                                            <div class="text-[10px] text-slate-500">#<?= (int)$row['user_id']; ?> · @<?= htmlspecialchars($row['username'] ?? 'N/A'); ?></div>
+                                        </td>
+                                        <td class="py-4 px-6 font-mono text-xs text-slate-300"><?= htmlspecialchars($row['leave_date']); ?></td>
+                                        <td class="py-4 px-6"><span class="px-2 py-1 rounded-lg text-[10px] font-bold <?= $row['shift_applied'] === 'M' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/25' : 'bg-purple-500/15 text-purple-400 border border-purple-500/25'; ?>"><?= $row['shift_applied'] === 'M' ? 'Morning' : 'Evening'; ?></span></td>
+                                        <td class="py-4 px-6 text-xs text-slate-400 max-w-[240px] truncate" title="<?= htmlspecialchars($row['reason'], ENT_QUOTES, 'UTF-8'); ?>"><?= htmlspecialchars($row['reason']); ?></td>
+                                        <td class="py-4 px-6"><span class="px-2.5 py-1 rounded-lg font-bold text-[10px] <?= $row['status'] === 'Approved' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25' : ($row['status'] === 'Pending' ? 'bg-amber-500/15 text-amber-400 border border-amber-500/25' : 'bg-rose-500/15 text-rose-400 border border-rose-500/25'); ?>"><?= htmlspecialchars($row['status']); ?></span></td>
+                                        <td class="py-4 px-6 text-xs"><?= !empty($row['is_emergency']) ? '<span class="text-amber-400 font-bold"><i class="fa-solid fa-bolt mr-1"></i>Yes</span>' : '<span class="text-slate-500">No</span>'; ?></td>
+                                        <td class="py-4 px-6 text-right">
+                                            <?php if ($row['status'] === 'Pending'): ?>
+                                                <div class="inline-flex items-center gap-2">
+                                                    <a href="admin.php?page=all-requests&action=approve&id=<?= (int)$row['id']; ?>" class="text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg transition inline-flex items-center gap-1"><i class="fa-solid fa-check"></i> Approve</a>
+                                                    <a href="admin.php?page=all-requests&action=cancel&id=<?= (int)$row['id']; ?>" onclick="return confirm('Cancel this leave request?');" class="text-[11px] font-bold bg-rose-600/80 hover:bg-rose-600 text-white px-3 py-1.5 rounded-lg transition inline-flex items-center gap-1"><i class="fa-solid fa-rectangle-xmark"></i> Cancel</a>
+                                                </div>
+                                            <?php elseif ($row['status'] === 'Approved' && $row['leave_date'] >= $today): ?>
+                                                <a href="admin.php?page=all-requests&action=cancel&id=<?= (int)$row['id']; ?>" onclick="return confirm('Cancel this approved leave?');" class="text-[11px] font-bold bg-rose-600/80 hover:bg-rose-600 text-white px-3 py-1.5 rounded-lg transition inline-flex items-center gap-1"><i class="fa-solid fa-rectangle-xmark"></i> Cancel</a>
+                                            <?php else: ?>
+                                                <span class="text-slate-600 text-[11px]">—</span>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php else: ?>
+                    <div class="p-12 text-center">
+                        <div class="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center mx-auto mb-4"><i class="fa-solid fa-inbox text-slate-600 text-2xl"></i></div>
+                        <p class="text-slate-400 text-sm font-semibold">No leave requests found</p>
+                    </div>
+                <?php endif; ?>
+            </section>
+            <?php endif; ?>
             <!-- Lab Calendar -->
             <?php if ($adminPage === 'lab-calendar'): ?>
             <div id="calendar-section" class="card-glass border border-slate-700/40 rounded-2xl p-6 overflow-hidden">
@@ -858,7 +957,7 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
                                                 <a href="admin.php?page=dashboard&action=cancel&id=<?= $row['id']; ?>"
                                                     onclick="return confirm('Mema leave request eka cancel karanna surety da?');"
                                                     class="text-[11px] font-bold bg-rose-600 hover:bg-rose-500 text-white px-3 py-1.5 rounded-lg transition shadow-sm shadow-rose-600/20 flex items-center gap-1">
-                                                    <i class="fa-solid fa-ban"></i> Cancel Request
+                                                    <i class="fa-solid fa-rectangle-xmark"></i> Cancel Request
                                                 </a>
                                             </div>
                                         </td>
@@ -1274,8 +1373,8 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
                     initialView: 'dayGridMonth',
                     height: 520,
                     headerToolbar: {
-                        left: 'prev,next today',
-                        center: 'title',
+                        left: 'prev,title,next',
+                        center: '',
                         right: 'dayGridMonth,timeGridWeek'
                     },
                     events: events,

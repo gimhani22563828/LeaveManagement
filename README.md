@@ -1,4 +1,4 @@
-# AKK Leave Management System
+# Super Nova Leave Management System
 
 Employee leave (නිවාඩු) management system — apply, auto-approve, admin review, calendar, logs. Designed to be deployed to **free InfinityFree hosting** and to be **sellable/re-usable per client**.
 

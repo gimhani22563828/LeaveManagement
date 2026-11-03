@@ -7,7 +7,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="A professional leave management platform for teams and organizations.">
-    <title>AKK SOLUTIONS | Automated Management System</title>
+    <title>Super Nova | Automated Management System</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -546,7 +546,7 @@
             .nav { height: 72px; }
         }
 
-        /* Match the authenticated AKK SOLUTIONS experience. */
+        /* Match the authenticated Super Nova experience. */
         body {
             background:
                 radial-gradient(circle at 8% 8%, rgba(99,102,241,0.18), transparent 28%),
@@ -559,6 +559,7 @@
             border-bottom-color: rgba(51, 65, 85, 0.7);
         }
         .brand { letter-spacing: 0.02em; }
+        .brand-logo { display: block; height: 42px; width: auto; max-width: min(250px, 42vw); object-fit: contain; }
         .brand-mark {
             width: 42px;
             height: 42px;
@@ -728,6 +729,7 @@
         @media (max-width: 640px) {
             .nav { height: 68px; }
             .brand { font-size: 0.94rem; }
+            .brand-logo { height: 36px; max-width: 190px; }
             .brand-mark { width: 38px; height: 38px; }
             .login-btn { padding: 10px 13px; }
             .hero { gap: 30px; padding: 42px 0 52px; }
@@ -762,9 +764,8 @@
 <body>
     <header class="topbar">
         <div class="container nav">
-            <a class="brand" href="home.php" aria-label="AKK SOLUTIONS home">
-                <span class="brand-mark">AK</span>
-                <span>AKK <span style="color:#818cf8;">SOLUTIONS</span></span>
+            <a class="brand" href="home.php" aria-label="Micro Medilab Laboratory Services home">
+                <img class="brand-logo" src="assets/images/logo-cropped.png" alt="Micro Medilab Laboratory Services">
             </a>
 
             <div class="nav-links">
@@ -917,7 +918,7 @@
 
     <footer>
         <div class="container footer-row">
-            <div>© <?= date('Y'); ?> AKK Solutions</div>
+            <div>© <?= date('Y'); ?> Super Nova. All rights reserved.</div>
             <div>Automated Management System</div>
         </div>
     </footer>

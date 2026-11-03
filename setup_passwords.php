@@ -357,7 +357,7 @@ $admins = $conn->query("SELECT * FROM admin_users")->fetchAll(PDO::FETCH_ASSOC);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AKK SOLUTIONS | Setup Passwords</title>
+    <title>Super Nova | Setup Passwords</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -374,11 +374,8 @@ $admins = $conn->query("SELECT * FROM admin_users")->fetchAll(PDO::FETCH_ASSOC);
     <aside id="adminSidebar" class="w-72 max-w-[85vw] bg-slate-950/95 lg:bg-slate-950/80 backdrop-blur-xl border-r border-slate-800/60 flex flex-col justify-between hidden lg:flex fixed inset-y-0 left-0 z-40 overflow-y-auto">
         <div>
             <div class="h-16 flex items-center px-6 border-b border-slate-800/60 gap-3">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                    <span class="text-sm font-black text-white">AK</span>
-                </div>
-                <div>
-                    <span class="text-lg font-bold tracking-tight text-white">AKK <span class="text-indigo-400">SOLUTIONS</span></span>
+                <div class="min-w-0">
+                    <img src="assets/images/logo-cropped.png" alt="Micro Medilab Laboratory Services" style="display:block;height:40px;width:auto;max-width:220px;object-fit:contain;">
                     <p class="text-[10px] text-slate-500 font-medium">Admin Dashboard</p>
                 </div>
             </div>
@@ -445,9 +442,7 @@ $admins = $conn->query("SELECT * FROM admin_users")->fetchAll(PDO::FETCH_ASSOC);
         <!-- Header -->
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
-                    <span class="text-lg font-black text-white">AK</span>
-                </div>
+                <img src="assets/images/logo-cropped.png" alt="Micro Medilab Laboratory Services" style="display:block;width:180px;max-width:42vw;max-height:40px;height:auto;object-fit:contain;">
                 <div>
                     <h1 class="text-xl font-bold text-white">Password Setup</h1>
                     <p class="text-xs text-slate-400">Initialize login credentials</p>

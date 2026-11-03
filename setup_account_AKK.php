@@ -1,6 +1,6 @@
 <?php
 /* =====================================================================
-   AKK Leave System - Quick Account Setup (ONE TIME)
+   Super Nova Leave System - Quick Account Setup (ONE TIME)
    ---------------------------------------------------------------------
    Web (InfinityFree) eken account eka create karanna me script eka
    upload karala me URL eka open karanna:
@@ -32,7 +32,7 @@ if ($inputKey === '') {
 <html lang="en"><head><meta charset="UTF-8"><title>Account Setup</title></head>
 <body style="font-family:Segoe UI,sans-serif;background:#0f172a;color:#fff;display:flex;justify-content:center;align-items:center;height:100vh;margin:0">
 <form method="POST" style="background:#1e293b;padding:32px;border-radius:16px;text-align:center">
-<h2 style="margin:0 0 16px">AKK Account Setup</h2>
+<h2 style="margin:0 0 16px">Super Nova Account Setup</h2>
 <input type="password" name="key" placeholder="Admin Key eka danna" required
   style="padding:12px 16px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#fff;width:100%;box-sizing:border-box">
 <br><br>
@@ -48,7 +48,7 @@ if (!hash_equals($AKK_ADMIN_KEY, $inputKey)) {
     exit(1);
 }
 
-$NAME      = 'AKK Solutions';
+$NAME      = 'Super Nova';
 $USERNAME  = 'admin';
 $PASSWORD  = 'Admin@2026';
 $SHIFT     = 'BOTH';
