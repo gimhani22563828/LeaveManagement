@@ -56,7 +56,7 @@ if (isset($_POST['create_owner'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AKK SOLUTIONS | First-Time Setup</title>
+    <title>Micro Medilab | First-Time Setup</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -71,9 +71,7 @@ if (isset($_POST['create_owner'])) {
     <div class="w-full max-w-md glass-card border border-slate-700/60 rounded-3xl p-8 space-y-6 shadow-2xl">
         <div class="text-center space-y-3">
             <div class="flex justify-center">
-                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-2xl shadow-indigo-500/30">
-                    <span class="text-2xl font-black text-white">AK</span>
-                </div>
+                <img src="assets/logo-cropped.png" alt="Micro Medilab Laboratory Services" class="w-[260px] max-w-full object-contain">
             </div>
             <h1 class="text-2xl font-extrabold text-white">First-Time Setup</h1>
             <p class="text-slate-400 text-xs leading-relaxed">

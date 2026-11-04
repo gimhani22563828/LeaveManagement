@@ -425,7 +425,7 @@ if ($regUnlocked) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AKK SOLUTIONS | Login</title>
+    <title>Micro Medilab | Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -490,10 +490,6 @@ if ($regUnlocked) {
         <div class="absolute inset-0" style="background-image: radial-gradient(rgba(99, 102, 241, 0.06) 1px, transparent 1px); background-size: 40px 40px;"></div>
     </div>
 
-    <a href="index.php" class="fixed top-4 right-4 z-20 inline-flex items-center gap-2 rounded-xl border border-slate-700/70 bg-slate-900/80 px-4 py-2.5 text-xs font-semibold text-slate-200 shadow-lg backdrop-blur hover:border-indigo-500/50 hover:text-white transition">
-        <i class="fa-solid fa-house text-indigo-400"></i> Home
-    </a>
-
     <div class="w-full max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-0 z-10 relative">
 
         <!-- Left Panel - Branding -->
@@ -504,17 +500,9 @@ if ($regUnlocked) {
             </div>
             <div class="relative z-10 text-center space-y-8">
                 <!-- Logo -->
-                <div class="flex justify-center">
-                    <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-2xl shadow-indigo-500/30 relative">
-                        <span class="text-3xl font-black text-white">AK</span>
-                        <div class="absolute -inset-1 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 opacity-20 blur-lg"></div>
-                    </div>
-                </div>
-                <div>
-                    <h1 class="text-4xl font-extrabold text-white tracking-tight">
-                        AKK <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">SOLUTIONS</span>
-                    </h1>
-                        <p class="text-slate-400 mt-2 text-sm tracking-wide">Automated Management System</p>
+                <div class="flex flex-col items-center gap-3">
+                    <img src="assets/logo-cropped.png" alt="Micro Medilab Laboratory Services" class="w-[300px] max-w-full object-contain">
+                    <p class="text-slate-300 text-sm font-semibold tracking-wide">Automated Management System</p>
                 </div>
                 <!-- Feature Cards -->
                 <div class="space-y-3 max-w-xs mx-auto">
@@ -554,11 +542,8 @@ if ($regUnlocked) {
             <div class="w-full max-w-md space-y-8">
 
                 <!-- Mobile Logo -->
-                <div class="flex items-center gap-3 lg:hidden">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                        <span class="text-lg font-black text-white">AK</span>
-                    </div>
-                    <span class="text-xl font-bold tracking-wide text-white">AKK <span class="text-indigo-400">SOLUTIONS</span></span>
+                <div class="flex justify-center lg:hidden">
+                    <img src="assets/logo-cropped.png" alt="Micro Medilab Laboratory Services" class="w-[250px] max-w-full object-contain">
                 </div>
 
                 <!-- Tab Switcher -->

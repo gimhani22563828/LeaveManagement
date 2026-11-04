@@ -568,7 +568,7 @@ $admins    = $conn->query("SELECT * FROM admin_users ORDER BY id")->fetchAll(PDO
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AKK Solutions | Create & Manage Accounts</title>
+    <title>Micro Medilab | Create & Manage Accounts</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -589,9 +589,6 @@ $admins    = $conn->query("SELECT * FROM admin_users ORDER BY id")->fetchAll(PDO
     <!-- Header -->
     <div class="flex items-center justify-between flex-wrap gap-3">
         <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                <span class="text-lg font-black text-white">AK</span>
-            </div>
             <div>
                 <h1 class="text-xl font-bold text-white">Create Account</h1>
                 <p class="text-xs text-slate-400">Owner Gate: username + password ekak illanawa</p>

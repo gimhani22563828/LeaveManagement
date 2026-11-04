@@ -1,5 +1,5 @@
 <?php
-// Public landing page for AKK SOLUTIONS Leave Management.
+// Public landing page for Micro Medilab Leave Management.
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -7,7 +7,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="A professional leave management platform for teams and organizations.">
-    <title>AKK SOLUTIONS | Automated Management System</title>
+    <title>Micro Medilab | Automated Management System</title>
     <meta name="google-site-verification" content="XbDTUMzlMYWVsVgRjG9h0c6KeLgpPvC6pF32hgBLgPE" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -544,7 +544,7 @@
             .nav { height: 72px; }
         }
 
-        /* Match the authenticated AKK SOLUTIONS experience. */
+        /* Match the authenticated Micro Medilab experience. */
         body {
             background:
                 radial-gradient(circle at 8% 8%, rgba(99,102,241,0.18), transparent 28%),
@@ -557,6 +557,7 @@
             border-bottom-color: rgba(51, 65, 85, 0.7);
         }
         .brand { letter-spacing: 0.02em; }
+        .brand-logo { display: block; width: 230px; max-width: 42vw; height: auto; }
         .brand-mark {
             width: 42px;
             height: 42px;
@@ -723,6 +724,7 @@
         @media (max-width: 640px) {
             .nav { height: 68px; }
             .brand { font-size: 0.94rem; }
+            .brand-logo { width: 190px; max-width: 58vw; }
             .brand-mark { width: 38px; height: 38px; }
             .login-btn { padding: 10px 13px; }
             .hero { gap: 30px; padding: 42px 0 52px; }
@@ -752,14 +754,14 @@
             box-shadow: none;
             background: rgba(30, 41, 59, 0.82);
             border-color: rgba(100, 116, 139, 0.34);
-        }    </style>
+        }
+    </style>
 </head>
 <body>
     <header class="topbar">
         <div class="container nav">
-            <a class="brand" href="index.php" aria-label="AKK SOLUTIONS home">
-                <span class="brand-mark">AK</span>
-                <span>AKK <span style="color:#818cf8;">SOLUTIONS</span></span>
+            <a class="brand" href="index.php" aria-label="Micro Medilab home">
+                <img class="brand-logo" src="assets/logo-cropped.png" alt="Micro Medilab Laboratory Services">
             </a>
 
             <div class="nav-links">
@@ -858,7 +860,7 @@
 
     <footer>
         <div class="container footer-row">
-            <div>© <?= date('Y'); ?> AKK Solutions</div>
+            <div>© <?= date('Y'); ?> Super Nova. All rights reserved.</div>
             <div>Automated Management System</div>
         </div>
     </footer>
