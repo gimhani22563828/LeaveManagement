@@ -12,10 +12,3 @@
 [2026-10-31 08:53:28] | LOGOUT       | ID:1    | admin           | admin    | IP:127.0.0.1       | @Admin      | User logged out
 [2026-10-31 08:56:52] | LOGOUT       | ID:1    | admin           | admin    | IP:127.0.0.1       | @Admin      | User logged out
 [2026-10-31 09:01:16] | LOGOUT       | ID:5    | Panduka         | employee | IP:127.0.0.1       | @Employee   | User logged out
-[2026-11-04 08:29:56] | LOGOUT       | ID:1    | admin           | admin    | IP:127.0.0.1       | @Admin      | User logged out
-[2026-11-04 08:43:32] | LOGOUT       | ID:5    | Panduka         | employee | IP:127.0.0.1       | @Employee   | User logged out
-[2026-11-04 09:02:00] | LOGOUT       | ID:1    | admin           | admin    | IP:127.0.0.1       | @Admin      | User logged out
-[2026-11-04 09:04:06] | LOGOUT       | ID:5    | Panduka         | employee | IP:127.0.0.1       | @Employee   | User logged out
-[2026-11-04 09:06:22] | LOGOUT       | ID:1    | admin           | admin    | IP:127.0.0.1       | @Admin      | User logged out
-[2026-11-04 09:06:35] | LOGOUT       | ID:5    | Panduka         | employee | IP:127.0.0.1       | @Employee   | User logged out
-[2026-11-04 09:08:08] | LOGOUT       | ID:1    | admin           | admin    | IP:127.0.0.1       | @Admin      | User logged out
