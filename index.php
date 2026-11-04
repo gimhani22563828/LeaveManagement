@@ -6,7 +6,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="A professional leave management platform for teams and organizations.">
+    <meta name="description" content="internal leave management system for employees and administrators. Authorized users only.">
     <title>Micro Medilab | Automated Management System</title>
     <meta name="google-site-verification" content="XbDTUMzlMYWVsVgRjG9h0c6KeLgpPvC6pF32hgBLgPE" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -779,7 +779,7 @@
                 <h1>Automated leave management for <span class="highlight">better teams.</span></h1>
                 <p class="lead">
                     A complete management system for leave requests, shift coverage, approvals,
-                    employee records, and real-time administrative visibility.
+                    employee records, and real-time administrative visibility Authorized users only..
                 </p>
 
                 <div class="cta-row">
@@ -860,8 +860,8 @@
 
     <footer>
         <div class="container footer-row">
-            <div>© <?= date('Y'); ?> Super Nova. All rights reserved.</div>
-            <div>Automated Management System</div>
+            <div>© <?= date('Y'); ?> SuperNova. All rights reserved.</div>
+            <div><a href="privacy.php">Privacy Notice</a> &middot;</div>
         </div>
     </footer>
 </body>
