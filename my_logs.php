@@ -26,7 +26,7 @@ $actionIcons = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AKK SOLUTIONS | My Activity Logs</title>
+    <title>Micro Medilab | My Activity Logs</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -46,10 +46,7 @@ $actionIcons = [
     <nav class="fixed top-0 inset-x-0 z-50 bg-slate-950/70 backdrop-blur-xl border-b border-slate-800/60">
         <div class="max-w-7xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                    <span class="text-sm font-black text-white">AK</span>
-                </div>
-                <span class="text-lg font-bold text-white tracking-tight">AKK <span class="text-indigo-400">SOLUTIONS</span></span>
+                <img src="assets/logo-cropped.png" alt="Micro Medilab Laboratory Services" class="h-10 w-auto max-w-[190px] object-contain">
             </div>
             <div class="flex items-center gap-3">
                 <div class="hidden md:flex items-center gap-2 bg-slate-800/50 border border-slate-700/50 rounded-xl px-3 py-2">

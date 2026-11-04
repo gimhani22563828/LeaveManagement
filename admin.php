@@ -515,7 +515,7 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AKK SOLUTIONS | Admin Dashboard</title>
+    <title>Micro Medilab | Admin Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -527,7 +527,41 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
         .sidebar-link:hover { background: rgba(99, 102, 241, 0.08); }
         .sidebar-link.active { background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.1)); border: 1px solid rgba(99, 102, 241, 0.2); color: #a5b4fc; }
         .fc { border-color: rgba(51, 65, 85, 0.5) !important; }
+        .fc .fc-header-toolbar { margin-bottom: 1rem !important; padding: 0 4px; }
         .fc .fc-toolbar-title { font-size: 1rem !important; font-weight: 700; color: white; }
+        .fc .fc-toolbar-chunk:first-child {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            align-items: center;
+            gap: 10px;
+            width: max-content;
+            max-width: 100%;
+            white-space: nowrap;
+        }
+        .fc .fc-toolbar-chunk:first-child > *,
+        .fc .fc-toolbar-chunk:first-child .fc-button-group {
+            display: inline-flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            align-items: center;
+            flex: 0 0 auto;
+        }
+        .fc .fc-toolbar-chunk:first-child .fc-toolbar-title {
+            display: inline-block !important;
+            flex: 0 0 auto;
+            white-space: nowrap;
+            margin: 0 4px !important;
+        }
+        .fc .fc-toolbar-title { white-space: nowrap; margin: 0 4px !important; }
+        .fc .fc-dayGridMonth-button, .fc .fc-timeGridWeek-button { border-radius: 10px !important; }
+        .fc .fc-timeGridWeek-button { margin-left: 10px !important; }
+        @media (max-width: 640px) {
+            .fc .fc-toolbar { flex-wrap: wrap; gap: 0.75rem; }
+            .fc .fc-toolbar-chunk:first-child { gap: 6px; min-width: max-content; }
+            .fc .fc-toolbar-title { font-size: 0.78rem !important; }
+            .fc .fc-prev-button, .fc .fc-next-button { padding: 5px 8px !important; }
+        }
         .fc .fc-button-primary { background-color: #4f46e5 !important; border: none !important; border-radius: 10px !important; padding: 6px 14px !important; font-size: 0.75rem !important; }
         .fc .fc-button-primary:hover { background-color: #4338ca !important; }
         .fc .fc-button-primary:disabled { background-color: rgba(79, 70, 229, 0.4) !important; }
@@ -550,11 +584,8 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
     <aside id="adminSidebar" class="w-72 max-w-[85vw] bg-slate-950/95 lg:bg-slate-950/80 backdrop-blur-xl border-r border-slate-800/60 flex flex-col justify-between hidden lg:flex fixed inset-y-0 left-0 z-40 overflow-y-auto">
         <div>
             <div class="h-16 flex items-center px-6 border-b border-slate-800/60 gap-3">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                    <span class="text-sm font-black text-white">AK</span>
-                </div>
                 <div>
-                    <span class="text-lg font-bold tracking-tight text-white">AKK <span class="text-indigo-400">SOLUTIONS</span></span>
+                    <img src="assets/logo-cropped.png" alt="Micro Medilab Laboratory Services" class="h-10 w-auto max-w-[190px] object-contain">
                     <p class="text-[10px] text-slate-500 font-medium">Admin Dashboard</p>
                 </div>
             </div>
@@ -1274,8 +1305,8 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
                     initialView: 'dayGridMonth',
                     height: 520,
                     headerToolbar: {
-                        left: 'prev,next today',
-                        center: 'title',
+                        left: 'prev,title,next',
+                        center: '',
                         right: 'dayGridMonth,timeGridWeek'
                     },
                     events: events,

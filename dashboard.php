@@ -189,7 +189,7 @@ $calendarEventsJson = json_encode(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AKK SOLUTIONS | Employee Leave Application</title>
+    <title>Micro Medilab | Employee Leave Application</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -205,7 +205,35 @@ $calendarEventsJson = json_encode(
         .portal-sidebar-link:hover { background: rgba(99, 102, 241, 0.08); }
         .portal-sidebar-link.active { background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.1)); border: 1px solid rgba(99, 102, 241, 0.2); color: #a5b4fc; }
         .fc { border-color: rgba(51, 65, 85, 0.5) !important; }
+        .fc .fc-header-toolbar { margin-bottom: 1rem !important; padding: 0 4px; }
         .fc .fc-toolbar-title { font-size: 1rem !important; font-weight: 700; color: white; }
+        .fc .fc-toolbar-chunk:first-child {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            align-items: center;
+            gap: 10px;
+            width: max-content;
+            max-width: 100%;
+            white-space: nowrap;
+        }
+        .fc .fc-toolbar-chunk:first-child > *,
+        .fc .fc-toolbar-chunk:first-child .fc-button-group {
+            display: inline-flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            align-items: center;
+            flex: 0 0 auto;
+        }
+        .fc .fc-toolbar-chunk:first-child .fc-toolbar-title {
+            display: inline-block !important;
+            flex: 0 0 auto;
+            white-space: nowrap;
+            margin: 0 4px !important;
+        }
+        .fc .fc-toolbar-title { white-space: nowrap; margin: 0 4px !important; }
+        .fc .fc-dayGridMonth-button, .fc .fc-timeGridWeek-button { border-radius: 10px !important; }
+        .fc .fc-timeGridWeek-button { margin-left: 10px !important; }
         .fc .fc-button-primary { background-color: #4f46e5 !important; border: none !important; border-radius: 10px !important; padding: 6px 14px !important; font-size: 0.75rem !important; }
         .fc .fc-button-primary:hover { background-color: #4338ca !important; }
         .fc .fc-button-primary:disabled { background-color: rgba(79, 70, 229, 0.4) !important; }
@@ -220,8 +248,9 @@ $calendarEventsJson = json_encode(
         .fc-scrollgrid-sync-table { background: rgba(15, 23, 42, 0.4) !important; }
         @media (max-width: 640px) {
             .fc .fc-toolbar { flex-wrap: wrap; gap: 0.75rem; }
-            .fc .fc-toolbar-title { font-size: 0.9rem !important; }
-            .fc .fc-button-primary { padding: 5px 8px !important; font-size: 0.65rem !important; }
+            .fc .fc-toolbar-chunk:first-child { gap: 6px; min-width: max-content; }
+            .fc .fc-toolbar-title { font-size: 0.78rem !important; }
+            .fc .fc-prev-button, .fc .fc-next-button { padding: 5px 8px !important; }
         }
     </style>
 </head>
@@ -237,11 +266,8 @@ $calendarEventsJson = json_encode(
     <aside id="portalSidebar" class="w-72 max-w-[85vw] bg-slate-950/95 backdrop-blur-xl border-r border-slate-800/60 flex flex-col justify-between hidden fixed inset-y-0 left-0 z-[60] overflow-y-auto lg:flex">
         <div>
             <div class="h-16 flex items-center px-6 border-b border-slate-800/60 gap-3">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                    <span class="text-sm font-black text-white">AK</span>
-                </div>
                 <div>
-                    <span class="text-lg font-bold tracking-tight text-white">AKK <span class="text-indigo-400">SOLUTIONS</span></span>
+                    <img src="assets/logo-cropped.png" alt="Micro Medilab Laboratory Services" class="h-10 w-auto max-w-[190px] object-contain">
                     <p class="text-[10px] text-slate-500 font-medium">Employee Portal</p>
                 </div>
             </div>
@@ -283,10 +309,7 @@ $calendarEventsJson = json_encode(
                 <button id="portalSidebarToggle" type="button" aria-controls="portalSidebar" aria-expanded="false" onclick="togglePortalSidebar()" class="lg:hidden text-slate-400 hover:text-white transition p-2 rounded-lg hover:bg-slate-800/50" aria-label="Toggle navigation">
                     <i class="fa-solid fa-bars"></i>
                 </button>
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                    <span class="text-sm font-black text-white">AK</span>
-                </div>
-                <span class="text-lg font-bold text-white tracking-tight">AKK <span class="text-indigo-400">SOLUTIONS</span></span>
+                <img src="assets/logo-cropped.png" alt="Micro Medilab Laboratory Services" class="h-10 w-auto max-w-[190px] object-contain lg:hidden">
             </div>
             <div class="flex items-center gap-3">
                 <div class="hidden md:flex items-center gap-2 bg-slate-800/50 border border-slate-700/50 rounded-xl px-3 py-2">
@@ -496,8 +519,8 @@ $calendarEventsJson = json_encode(
                     initialView: 'dayGridMonth',
                     height: 'auto',
                     headerToolbar: {
-                        left: 'prev,next today',
-                        center: 'title',
+                        left: 'prev,title,next',
+                        center: '',
                         right: 'dayGridMonth,timeGridWeek'
                     },
                     events: <?= $calendarEventsJson; ?>,
