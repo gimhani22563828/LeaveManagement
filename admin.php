@@ -419,7 +419,13 @@ $stmt = $conn->query("SELECT COUNT(*) as c FROM leave_requests WHERE status IN (
 $total_rejected = $stmt->fetch(PDO::FETCH_ASSOC)['c'];
 
 // --- Pending Requests ---
-$stmt = $conn->query("SELECT lr.*, u.name, u.emp_number, u.username, u.position, u.employee_type
+$stmt = $conn->query("SELECT lr.*, u.name, u.emp_number, u.username, u.position, u.employee_type,
+                             (SELECT COUNT(*)
+                              FROM leave_requests approved
+                              WHERE approved.user_id = lr.user_id
+                                AND approved.status = 'Approved'
+                                AND SUBSTR(approved.leave_date, 1, 7) = SUBSTR(lr.leave_date, 1, 7)
+                             ) AS monthly_approved_count
                       FROM leave_requests lr 
                       JOIN users u ON lr.user_id = u.id 
                       WHERE lr.status = 'Pending' 
@@ -731,6 +737,9 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
                                         <th class="py-3.5 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Lab</th>
                                     <?php endif; ?>
                                     <th class="py-3.5 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Leave Date</th>
+                                    <?php if ($adminPage === 'pending-leaves'): ?>
+                                        <th class="py-3.5 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Approved in Month</th>
+                                    <?php endif; ?>
                                     <th class="py-3.5 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Shift</th>
                                     <th class="py-3.5 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Reason</th>
                                     <?php if ($adminPage === 'pending-leaves'): ?>
@@ -759,6 +768,9 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
                                             <td class="py-4 px-6 text-xs text-slate-300"><?= htmlspecialchars($row['lab_name'] ?? '') ?: '-'; ?></td>
                                         <?php endif; ?>
                                         <td class="py-4 px-6 font-mono text-xs text-slate-300"><?= htmlspecialchars($row['leave_date']); ?></td>
+                                        <?php if ($adminPage === 'pending-leaves'): ?>
+                                            <td class="py-4 px-6 text-xs text-slate-300"><?= (int)$row['monthly_approved_count']; ?></td>
+                                        <?php endif; ?>
                                         <td class="py-4 px-6">
                                             <span class="px-2 py-1 rounded-lg text-[10px] font-bold <?= $row['shift_applied'] === 'M' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/25' : 'bg-purple-500/15 text-purple-400 border border-purple-500/25'; ?>">
                                                 <?= $row['shift_applied'] === 'M' ? 'Morning' : 'Evening'; ?>
@@ -859,6 +871,7 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
                                 <tr class="border-b border-slate-700/40 bg-slate-900/30">
                                     <th class="py-3.5 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Employee</th>
                                     <th class="py-3.5 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Leave Date</th>
+                                    <th class="py-3.5 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Approved in Month</th>
                                     <th class="py-3.5 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Shift</th>
                                     <th class="py-3.5 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Reason</th>
                                     <th class="py-3.5 px-6 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
@@ -874,6 +887,7 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
                                             </div>
                                         </td>
                                         <td class="py-4 px-6 font-mono text-xs text-slate-300"><?= $row['leave_date']; ?></td>
+                                        <td class="py-4 px-6 text-xs text-slate-300"><?= (int)$row['monthly_approved_count']; ?></td>
                                         <td class="py-4 px-6">
                                             <span class="px-2 py-1 rounded-lg text-[10px] font-bold <?= $row['shift_applied'] == 'M' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/25' : 'bg-purple-500/15 text-purple-400 border border-purple-500/25'; ?>">
                                                 <?= $row['shift_applied'] == 'M' ? 'Morning' : 'Evening'; ?>

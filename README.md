@@ -84,6 +84,7 @@ Rules are stored in the DB (`app_settings`) and can be changed live from the adm
 ## 5. Tech notes
 
 - PHP 8.x, PDO MySQL on web / PDO SQLite on localhost (auto-detected).
+- Application dates and times use the `Asia/Colombo` timezone.
 - Tailwind + Font Awesome + FullCalendar via CDN (needs internet).
 - Logging goes to DB `system_logs` (falls back to `logs/` file).
 - `.htaccess` blocks direct access to `db.php`, `db_template.php`, `auth.php`, `logger.php`, `leaveManagementEngine.php`, and the `logs/` folder.
