@@ -24,8 +24,9 @@ $today = date('Y-m-d');
 $current_month = date('m');
 $current_year = date('Y');
 
-$message = "";
-$messageOk = true;
+$message = $_SESSION['admin_flash_message'] ?? "";
+$messageOk = $_SESSION['admin_flash_message_ok'] ?? true;
+unset($_SESSION['admin_flash_message'], $_SESSION['admin_flash_message_ok']);
 
 function validUsernameFormat($u) {
     return is_string($u) && preg_match('/^[a-zA-Z0-9._]{3,50}$/', $u);
@@ -179,6 +180,8 @@ if (isset($_POST['assign_leave'])) {
         $err = 'Employee kenekwa select karanna.';
     } elseif (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $leaveDate) || strtotime($leaveDate) === false) {
         $err = 'වලංගු දිනයක් තෝරන්න.';
+    } elseif ($leaveDate < $today) {
+        $err = 'Past dates are not allowed. Select today or a future date.';
     } elseif (!in_array($shift, ['M', 'E'], true)) {
         $err = 'Shift eka thooranna (Morning ho Evening).';
     } elseif ($reason === '') {
@@ -191,6 +194,21 @@ if (isset($_POST['assign_leave'])) {
         $emp = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$emp) {
             $err = 'Employee #' . $empId . ' db eke nathi vela.';
+        } else {
+            $stmt = $conn->prepare("
+                SELECT COUNT(*)
+                FROM leave_requests
+                WHERE user_id = :user_id
+                  AND leave_date = :leave_date
+                  AND status NOT IN ('Cancelled', 'Rejected')
+            ");
+            $stmt->execute([
+                ':user_id' => $empId,
+                ':leave_date' => $leaveDate,
+            ]);
+            if ((int)$stmt->fetchColumn() > 0) {
+                $err = 'This employee already has a leave request for this date. Only one leave per day is allowed, regardless of shift.';
+            }
         }
     }
 
@@ -397,6 +415,13 @@ if (isset($_POST['reset_user_password'])) {
     }
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $_SESSION['admin_flash_message'] = $message;
+    $_SESSION['admin_flash_message_ok'] = $messageOk;
+    header('Location: admin.php?page=' . rawurlencode($adminPage));
+    exit();
+}
+
 // --- Metrics ---
 $stmt = $conn->query("SELECT COUNT(*) as c FROM leave_requests WHERE status = 'Pending'");
 $pending_count = $stmt->fetch(PDO::FETCH_ASSOC)['c'];
@@ -477,11 +502,47 @@ function leaveCalendarAppearance(string $leaveDate, string $today): array {
     return ['color' => '#10b981', 'classNames' => ['leave-upcoming']];
 }
 
-$stmt = $conn->query("SELECT lr.id, lr.leave_date, lr.shift_applied, u.name, u.id AS user_id, u.lab_id
+function addLeaveCounts(array $leaveRows): array {
+    $datesByEmployee = [];
+    foreach ($leaveRows as $row) {
+        $leaveDate = (string)($row['leave_date'] ?? '');
+        $date = DateTime::createFromFormat('!Y-m-d', $leaveDate);
+        $dateErrors = DateTime::getLastErrors();
+        $isValidDate = $date !== false
+            && ($dateErrors === false || ($dateErrors['warning_count'] === 0 && $dateErrors['error_count'] === 0))
+            && $date->format('Y-m-d') === $leaveDate;
+
+        if (($row['status'] ?? 'Approved') !== 'Approved' || !$isValidDate) {
+            continue;
+        }
+
+        $employeeId = (string)$row['user_id'];
+        $datesByEmployee[$employeeId][$leaveDate] = ($datesByEmployee[$employeeId][$leaveDate] ?? 0) + 1;
+    }
+
+    $countsByEmployeeAndDate = [];
+    foreach ($datesByEmployee as $employeeId => $dates) {
+        ksort($dates, SORT_STRING);
+        $count = 0;
+        foreach ($dates as $leaveDate => $entriesOnDate) {
+            $count += $entriesOnDate;
+            $countsByEmployeeAndDate[$employeeId][$leaveDate] = $count;
+        }
+    }
+
+    foreach ($leaveRows as &$row) {
+        $row['leave_count'] = $countsByEmployeeAndDate[(string)$row['user_id']][(string)$row['leave_date']] ?? 0;
+    }
+    unset($row);
+
+    return $leaveRows;
+}
+
+$stmt = $conn->query("SELECT lr.id, lr.leave_date, lr.shift_applied, lr.status, u.name, u.id AS user_id, u.lab_id
                       FROM leave_requests lr
                       JOIN users u ON lr.user_id = u.id
                       WHERE lr.status = 'Approved' AND u.employee_type = 'lab'");
-$labLeaveRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$labLeaveRows = addLeaveCounts($stmt->fetchAll(PDO::FETCH_ASSOC));
 
 $labCalendarEvents = [];
 foreach ($labLeaveRows as $row) {
@@ -492,16 +553,17 @@ foreach ($labLeaveRows as $row) {
         'start' => $row['leave_date'],
         'color' => $appearance['color'],
         'classNames' => $appearance['classNames'],
-        'labId' => (int)$row['lab_id']
+        'labId' => (int)$row['lab_id'],
+        'leaveCount' => (int)$row['leave_count']
     ];
 }
 $labEventsJson = json_encode($labCalendarEvents, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_THROW_ON_ERROR);
 
-$stmt = $conn->query("SELECT lr.id, lr.leave_date, lr.shift_applied, u.name, u.id AS user_id
+$stmt = $conn->query("SELECT lr.id, lr.leave_date, lr.shift_applied, lr.status, u.name, u.id AS user_id
                       FROM leave_requests lr
                       JOIN users u ON lr.user_id = u.id
                       WHERE lr.status = 'Approved' AND u.employee_type = 'rider'");
-$riderLeaveRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$riderLeaveRows = addLeaveCounts($stmt->fetchAll(PDO::FETCH_ASSOC));
 
 $riderCalendarEvents = [];
 foreach ($riderLeaveRows as $row) {
@@ -511,7 +573,8 @@ foreach ($riderLeaveRows as $row) {
         'title' => '#' . $row['user_id'] . ' ' . $row['name'] . ' (' . $row['shift_applied'] . ')',
         'start' => $row['leave_date'],
         'color' => $appearance['color'],
-        'classNames' => $appearance['classNames']
+        'classNames' => $appearance['classNames'],
+        'leaveCount' => (int)$row['leave_count']
     ];
 }
 $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_THROW_ON_ERROR);
@@ -1113,7 +1176,7 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1.5">Leave Date</label>
-                                    <input type="date" name="assign_date" required
+                                    <input type="date" name="assign_date" min="<?= $today; ?>" required
                                         class="w-full bg-slate-800/60 border border-slate-700/60 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500 input-glow transition-all">
                                 </div>
                                 <div>
@@ -1325,7 +1388,7 @@ $riderEventsJson = json_encode($riderCalendarEvents, JSON_HEX_TAG | JSON_HEX_APO
                     },
                     events: events,
                     eventClick: function(info) {
-                        if (confirm(leaveOwner + ' Leave: ' + info.event.title + '\nDate: ' + info.event.startStr + '\n\nObata me leave eka cancel karanna oneda?')) {
+                        if (confirm(leaveOwner + ' Leave: ' + info.event.title + '\nDate: ' + info.event.startStr + '\nLeave Count: ' + info.event.extendedProps.leaveCount + '\n\nObata me leave eka cancel karanna oneda?')) {
                             window.location.href = 'admin.php?page=<?= $adminPage; ?>&action=cancel&id=' + info.event.id;
                         }
                     },

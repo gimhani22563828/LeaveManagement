@@ -30,7 +30,24 @@ if (!is_string($portalPage) || !isset($portalPages[$portalPage])) {
     $portalPage = 'apply';
 }
 
-$message = "";
+$message = $_SESSION['dashboard_flash_message'] ?? "";
+unset($_SESSION['dashboard_flash_message']);
+
+function hasActiveLeaveOnDate(PDO $conn, int $userId, string $leaveDate): bool {
+    $stmt = $conn->prepare("
+        SELECT COUNT(*)
+        FROM leave_requests
+        WHERE user_id = :user_id
+          AND leave_date = :leave_date
+          AND status NOT IN ('Cancelled', 'Rejected')
+    ");
+    $stmt->execute([
+        ':user_id' => $userId,
+        ':leave_date' => $leaveDate,
+    ]);
+
+    return (int)$stmt->fetchColumn() > 0;
+}
 
 if (isset($_POST['apply_leave'])) {
     $user_id = (int)$me['id'];
@@ -39,14 +56,16 @@ if (isset($_POST['apply_leave'])) {
 
     // දින 5 පරීක්ෂාව - දින 5ට අඩු නම් automatically is_emergency = 1 වේ
     $today = new DateTime(date('Y-m-d'));
-    $targetDate = new DateTime($leave_date);
+    $is_valid_leave_date = preg_match('/^\d{4}-\d{2}-\d{2}$/', $leave_date)
+        && strtotime($leave_date) !== false;
+    $targetDate = $is_valid_leave_date ? new DateTime($leave_date) : $today;
     $diff = $today->diff($targetDate);
     
     $is_past_date = ($diff->invert == 1 && $diff->days > 0);
     $is_notice_short = ($is_past_date || ($diff->invert == 0 && $diff->days < 5));
     $is_emergency = (isset($_POST['is_emergency']) || $is_notice_short) ? 1 : 0;
 
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $leave_date) || strtotime($leave_date) === false) {
+    if (!$is_valid_leave_date) {
         writeLog('LEAVE_REJECTED', "User#$user_id invalid date");
         $message = '
         <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-300 flex items-start gap-3 shadow-lg shadow-rose-500/5">
@@ -56,6 +75,18 @@ if (isset($_POST['apply_leave'])) {
             <div class="text-xs leading-relaxed">
                 <strong class="font-bold text-sm block mb-0.5 text-rose-300">Invalid Date</strong>
                 වලංගු දිනයක් තෝරන්න.
+            </div>
+        </div>';
+    } elseif ($is_past_date) {
+        writeLog('LEAVE_REJECTED', "User#$user_id past date:$leave_date");
+        $message = '
+        <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-300 flex items-start gap-3 shadow-lg shadow-rose-500/5">
+            <div class="w-10 h-10 rounded-xl bg-rose-500/15 flex items-center justify-center flex-shrink-0">
+                <i class="fa-solid fa-circle-xmark text-rose-400"></i>
+            </div>
+            <div class="text-xs leading-relaxed">
+                <strong class="font-bold text-sm block mb-0.5 text-rose-300">Past Date Not Allowed</strong>
+                Leave apply karanna ada ho idiriyata date ekak select karanna.
             </div>
         </div>';
     } elseif ($reason === '') {
@@ -68,6 +99,18 @@ if (isset($_POST['apply_leave'])) {
             <div class="text-xs leading-relaxed">
                 <strong class="font-bold text-sm block mb-0.5 text-rose-300">Reason Required</strong>
                 නිවාඩුවට හේතුවක් ලියන්න.
+            </div>
+        </div>';
+    } elseif (hasActiveLeaveOnDate($conn, $user_id, $leave_date)) {
+        writeLog('LEAVE_REJECTED', "User#$user_id duplicate leave date:$leave_date");
+        $message = '
+        <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-300 flex items-start gap-3 shadow-lg shadow-rose-500/5">
+            <div class="w-10 h-10 rounded-xl bg-rose-500/15 flex items-center justify-center flex-shrink-0">
+                <i class="fa-solid fa-circle-xmark text-rose-400"></i>
+            </div>
+            <div class="text-xs leading-relaxed">
+                <strong class="font-bold text-sm block mb-0.5 text-rose-300">Leave Already Applied</strong>
+                You already have a leave request for this date. Only one leave per day is allowed, regardless of shift.
             </div>
         </div>';
     } else {
@@ -141,6 +184,12 @@ if (isset($_POST['apply_leave'])) {
             }
         }
     }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $_SESSION['dashboard_flash_message'] = $message;
+    header('Location: dashboard.php?page=' . rawurlencode($portalPage));
+    exit();
 }
 
 // Show leave events for the current employee type only.
@@ -421,7 +470,7 @@ $calendarEventsJson = json_encode(
                                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                         <i class="fa-solid fa-calendar-day text-slate-500 text-sm"></i>
                                     </div>
-                                    <input type="date" name="leave_date" required
+                                    <input type="date" name="leave_date" min="<?= date('Y-m-d'); ?>" required
                                         class="w-full bg-slate-900/60 border border-slate-700/60 rounded-xl pl-11 pr-4 py-3.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 input-glow transition-all">
                                 </div>
                             </div>
